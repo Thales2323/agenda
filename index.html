@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <main>
+        <header class="topo">
+            <h1>Agenda da Semana</h1>
+        </header>
+
+        <section class="agenda">
+            <div class="busca">
+                <input type="text" id="pesquisa" placeholder="Pesquisar compromisso...">
+            </div>
+            <div class="filtros">
+                <button class="filtro ativo" data-tipo="Todos">Todos</button>
+                <button class="filtro" data-tipo="Treinamento">Treinamento</button>
+                <button class="filtro" data-tipo="Visita">Visita</button>
+                <button class="filtro" data-tipo="Demanda">Demanda</button>
+                <button class="filtro" data-tipo="Cancelar">Cancelamento</button>
+            </div>
+            <div id="calendar"></div>
+        </section>
+
+        <section class="cards">
+            <div class="card treinamento">
+                <h2>🎓 Treinamentos</h2>
+                <span id="cardTreinamentos">0</span>
+            </div>
+
+            <div class="card visita">
+                <h2>🚗 Visitas</h2>
+                <span id="cardVisitas">0</span>
+            </div>
+
+            <div class="card demanda">
+                <h2>📋 Demandas</h2>
+                <span id="cardDemandas">0</span>
+            </div>
+
+            <div class="card cancelar">
+                <h2>❌ Cancelados</h2>
+                <span id="cardCancelados">0</span>
+            </div>
+        </section>
+
+        <section class="rodape">
+            <div class="proximos">
+                <h2>Próximos Compromissos</h2>
+                <div id="listaEventos"></div>
+            </div>
+            <div class="resumo">
+                <h2>Resumo da Semana</h2>
+                <p>🎓 Treinamentos: <span id="totalTreinamentos">0</span></p>
+                <p>🚗 Visitas: <span id="totalVisitas">0</span></p>
+                <p>📋 Demandas: <span id="totalDemandas">0</span></p>
+            </div>
+        </section>
+    </main>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="fechar">&times;</span>
+            <h2 id="tituloModal">Novo Evento</h2>
+            
+            <form id="formEvento">
+                <div class="linha-dupla">
+                    <div>
+                        <label>Data</label>
+                        <input type="date" id="data" required>
+                    </div>
+                    <div>
+                        <label>Horário</label>
+                        <input type="time" id="hora" required>
+                    </div>
+                </div>
+
+                <div class="linha-dupla">
+                    <div>
+                        <label>Município</label>
+                        <select id="municipio" required>
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Unidade</label>
+                        <select id="unidade" required>
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="linha-dupla">
+                    <div>
+                        <label>Sistema</label>
+                        <select id="sistema">
+                            <option value="">Selecione...</option>
+                            <option value="Viver">Viver</option>
+                            <option value="e-SUS">e-SUS</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Status</label>
+                        <select id="status">
+                            <option value="Pendente">Pendente</option>
+                            <option value="Confirmado">Confirmado</option>
+                            <option value="Finalizado">Finalizado</option>
+                            <option value="Cancelado">Cancelado</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label>Responsável</label>
+                    <input type="text" id="responsavel" placeholder="Nome do responsável">
+                </div>
+                
+                <div id="camposExtras"></div>
+                
+                <div>
+                    <label>Observações</label>
+                    <textarea id="observacao" placeholder="Informações adicionais..."></textarea>
+                </div>
+
+                <button type="submit" class="btn-salvar">Salvar Compromisso</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="menuEvento" class="menu-evento">
+        <button id="btnEditar">✏️ Editar</button>
+        <button id="btnDuplicar">📄 Duplicar</button>
+        <button id="btnCancelarCompromisso">❌ Cancelar Compromisso</button>
+        <button id="btnApagar" style="color: #ef4444;">🗑️ Apagar</button>
+    </div>
+
+    <div id="detalhesEvento" class="modal">
+        <div class="modal-content">
+            <span class="fechar-detalhes">&times;</span>
+            <h2>Detalhes</h2>
+            <div id="conteudoDetalhes"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales-all.global.min.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
