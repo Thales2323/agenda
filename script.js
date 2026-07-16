@@ -268,8 +268,9 @@ document.getElementById("formEvento").addEventListener("submit", function (e) {
     e.preventDefault();
 
     let titulo = document.getElementById("tituloModal").innerHTML;
-    let inicio = document.getElementById("data").value + "T" + document.getElementById("hora").value;
-    let municipioSel = document.getElementById("municipio").value;
+    let data = document.getElementById("data").value;
+    let hora = document.getElementById("hora").value;
+    let inicio = hora ? `${data}T${hora}` : data;    let municipioSel = document.getElementById("municipio").value;
     let unidadeSel = document.getElementById("unidade").value || "Geral";
     let sistemaSel = document.getElementById("sistema").value;
     let statusSel = document.getElementById("status").value;
