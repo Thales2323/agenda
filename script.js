@@ -130,7 +130,7 @@ function iniciarModais() {
     });
 }
 
-function abrirModalCadastro(titulo, dadosEdicao = null) {
+function abrirModalCadastro(titulo, dadosEdicao = null, dataSelecionada = null) {
     document.getElementById("tituloModal").innerHTML = titulo;
     document.getElementById("modal").style.display = "flex";
     
@@ -166,8 +166,15 @@ function abrirModalCadastro(titulo, dadosEdicao = null) {
         document.getElementById("status").value = dadosEdicao.extendedProps?.status || "Pendente";
         document.getElementById("responsavel").value = dadosEdicao.extendedProps?.responsavel || "";
         document.getElementById("observacao").value = dadosEdicao.extendedProps?.observacao || "";
-    } else {
-        document.getElementById("formEvento").reset();
+    } 
+    
+    else {
+    document.getElementById("formEvento").reset();
+
+    if (dataSelecionada) {
+        document.getElementById("data").value = dataSelecionada;
+        document.getElementById("hora").value = "08:00";
+        }
     }
 }
 
@@ -228,10 +235,12 @@ function iniciarCalendario() {
             day: "Dia"
         },
         dateClick(info) {
-            document.getElementById("data").value = info.dateStr;
-            document.getElementById("hora").value = "08:00";
-            abrirModalCadastro("Novo Treinamento");
-        },
+    abrirModalCadastro(
+        "Novo Treinamento",
+        null,
+        info.dateStr
+    );
+},
         // CLIQUE ESQUERDO
         eventClick(info) {
             info.jsEvent.preventDefault();
