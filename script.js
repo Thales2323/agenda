@@ -54,6 +54,35 @@ document.addEventListener("DOMContentLoaded", () => {
     iniciarCalendario();
     iniciarModais();
     iniciarFiltros();
+    iniciarPesquisa();
+});
+    function iniciarPesquisa() {
+    const campoPesquisa = document.getElementById("pesquisa");
+
+    if (!campoPesquisa) return;
+
+    campoPesquisa.addEventListener("input", function () {
+        const texto = this.value.toLowerCase().trim();
+
+        calendar.getEvents().forEach(evento => {
+
+            const titulo = (evento.title || "").toLowerCase();
+            const municipio = (evento.extendedProps?.municipio || "").toLowerCase();
+            const unidade = (evento.extendedProps?.unidade || "").toLowerCase();
+            const sistema = (evento.extendedProps?.sistema || "").toLowerCase();
+            const responsavel = (evento.extendedProps?.responsavel || "").toLowerCase();
+
+            const encontrou =
+                titulo.includes(texto) ||
+                municipio.includes(texto) ||
+                unidade.includes(texto) ||
+                sistema.includes(texto) ||
+                responsavel.includes(texto);
+
+            evento.setProp("display", encontrou || texto === "" ? "auto" : "none");
+        });
+    });
+}
 });
 
 // ================================
