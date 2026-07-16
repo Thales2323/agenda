@@ -151,12 +151,29 @@ function iniciarModais() {
 
     // Criar evento a partir dos Cards superiores
     document.querySelectorAll(".card").forEach(card => {
-        card.onclick = () => {
-            let tituloCard = card.querySelector("h2").innerText;
-            let tipoLimpo = tituloCard.replace(/[^a-zA-ZáàâãéèêíïóôõöúçÑ ]/g, '').trim();
-            abrirModalCadastro(tipoLimpo);
-        };
-    });
+    card.onclick = () => {
+
+        if (card.classList.contains("treinamento")) {
+            abrirModalCadastro("Novo Treinamento");
+            return;
+        }
+
+        if (card.classList.contains("visita")) {
+            abrirModalCadastro("Nova Visita");
+            return;
+        }
+
+        if (card.classList.contains("demanda")) {
+            abrirModalCadastro("Nova Demanda");
+            return;
+        }
+
+        if (card.classList.contains("cancelar")) {
+            alert("Os cancelamentos são feitos clicando com o botão direito sobre um compromisso.");
+        }
+
+    };
+});
 }
 
 function abrirModalCadastro(titulo, dadosEdicao = null, dataSelecionada = null) {
