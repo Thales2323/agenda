@@ -234,8 +234,9 @@ function iniciarCalendario() {
             week: "Semana",
             day: "Dia"
         },
-        dateClick(info) {abrirModalCadastro("Novo Treinamento", null, info.dateStr);},
-},
+        dateClick(info) {abrirModalCadastro("Novo Treinamento", null, info.dateStr);
+        },
+        
         // CLIQUE ESQUERDO
         eventClick(info) {
             info.jsEvent.preventDefault();
