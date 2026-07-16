@@ -24,14 +24,29 @@ main{
 
 .topo{
     display:flex;
-    justify-content:center;
+    justify-content:space-between;
     align-items:center;
-    margin-bottom:30px;
+    margin-bottom:25px;
+    padding:20px;
+    background:#fff;
+    border-radius:18px;
+    box-shadow:0 8px 20px rgba(0,0,0,.08);
 }
 
-.topo h1{
-    font-size:32px;
-    color:#1f2937;
+.topo-esquerda h1{
+    font-size:30px;
+    color:#1e293b;
+    margin-bottom:4px;
+}
+
+.topo-esquerda span{
+    color:#64748b;
+    font-size:14px;
+}
+
+.topo-direita{
+    display:flex;
+    gap:10px;
 }
 
 /* ===========================
