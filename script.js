@@ -173,7 +173,7 @@ function abrirModalCadastro(titulo, dadosEdicao = null, dataSelecionada = null) 
 
     if (dataSelecionada) {
         document.getElementById("data").value = dataSelecionada;
-        document.getElementById("hora").value = "08:00";
+        document.getElementById("hora").value = "";
         }
     }
 }
