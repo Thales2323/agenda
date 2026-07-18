@@ -3,174 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agenda</title>
+    <title>Agenda da Semana</title>
+    <!-- CSS do FullCalendar -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css' rel='stylesheet' />
     <link rel="stylesheet" href="style.css">
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css" rel="stylesheet">
 </head>
 <body>
 
     <main>
         <header class="topo">
+            <h1>Agenda da Semana</h1>
+        </header>
 
-    <div class="topo-esquerda">
-        <h1>Agenda Flow</h1>
-        <span>Planejamento de Treinamentos, Visitas e Demandas</span>
-    </div>
-
-    <div class="topo-direita">
-        <button class="btn-topo" id="novoCompromisso">
-            ➕ Novo Compromisso
-        </button>
-
-        <button class="btn-topo">
-            📄 Exportar
-        </button>
-
-        <button class="btn-topo">
-            ⚙️ Configurações
-        </button>
-    </div>
-
-</header>
-
+        <!-- ÁREA DO CALENDÁRIO E FILTROS -->
         <section class="agenda">
             <div class="busca">
-                <input type="text" id="pesquisa" placeholder="Pesquisar compromisso...">
+                <input type="text" placeholder="Pesquisar compromisso...">
             </div>
             <div class="filtros">
-                <button class="filtro ativo" data-tipo="Todos">Todos</button>
-                <button class="filtro" data-tipo="Treinamento">Treinamento</button>
-                <button class="filtro" data-tipo="Visita">Visita</button>
-                <button class="filtro" data-tipo="Demanda">Demanda</button>
-                <button class="filtro" data-tipo="Cancelar">Cancelamento</button>
+                <button class="filtro ativo">Todos</button>
+                <button class="filtro">Treinamento</button>
+                <button class="filtro">Visita</button>
+                <button class="filtro">Demanda</button>
+                <button class="filtro">Cancelamento</button>
             </div>
+            <!-- Container do FullCalendar -->
             <div id="calendar"></div>
         </section>
 
+        <!-- CARDS DE RESUMO (5 COLUNAS) -->
         <section class="cards">
             <div class="card treinamento">
                 <h2>🎓 Treinamentos</h2>
                 <span id="cardTreinamentos">0</span>
             </div>
-
             <div class="card visita">
                 <h2>🚗 Visitas</h2>
                 <span id="cardVisitas">0</span>
             </div>
-
             <div class="card demanda">
                 <h2>📋 Demandas</h2>
                 <span id="cardDemandas">0</span>
             </div>
-
             <div class="card cancelar">
                 <h2>❌ Cancelados</h2>
                 <span id="cardCancelados">0</span>
             </div>
+            <!-- Card de Relatório Clicável -->
+            <div id="btnRelatorio" class="card relatorio-card" style="cursor: pointer;">
+                <h2>📊 Relatório</h2>
+                <span>Gerar Mensal</span>
+            </div>
         </section>
 
-        <section class="rodape">
+        <!-- RODAPÉ (PRÓXIMOS E RESUMO) -->
+        <div class="rodape">
             <div class="proximos">
-                <h2>Próximos Compromissos</h2>
-                <div id="listaEventos"></div>
+                <h2>📅 Próximos Compromissos da Semana</h2>
+                <div id="listaProximos"></div>
             </div>
             <div class="resumo">
-                <h2>Resumo da Semana</h2>
-                <p>🎓 Treinamentos: <span id="totalTreinamentos">0</span></p>
-                <p>🚗 Visitas: <span id="totalVisitas">0</span></p>
-                <p>📋 Demandas: <span id="totalDemandas">0</span></p>
+                <h2>💡 Resumo Operacional</h2>
+                <div id="conteudoResumo"></div>
             </div>
-        </section>
+        </div>
     </main>
 
-    <div id="modal" class="modal">
+    <!-- MODAL DE DETALHES (Onde o 'X' deve funcionar) -->
+    <div id="modalDetalhes" class="modal">
         <div class="modal-content">
-            <span class="fechar">&times;</span>
-            <h2 id="tituloModal">Novo Evento</h2>
-            
-            <form id="formEvento">
-                <div class="linha-dupla">
-                    <div>
-                        <label>Data</label>
-                        <input type="date" id="data" required>
-                    </div>
-                    <div>
-                        <label>Horário</label>
-                        <input type="time" id="hora">
-                    </div>
-                </div>
-
-                <div class="linha-dupla">
-                    <div>
-                        <label>Município</label>
-                        <select id="municipio" required>
-                            <option value="">Selecione...</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Unidade</label>
-                        <select id="unidade" required>
-                            <option value="">Selecione...</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="linha-dupla">
-                    <div>
-                        <label>Sistema</label>
-                        <select id="sistema">
-                            <option value="">Selecione...</option>
-                            <option value="Vivver">Vivver</option>
-                            <option value="e-SUS">Viver antigo</option>
-                            <option value="Outro">Outro</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Status</label>
-                        <select id="status">
-                            <option value="Pendente">Pendente</option>
-                            <option value="Confirmado">Confirmado</option>
-                            <option value="Finalizado">Finalizado</option>
-                            <option value="Cancelado">Cancelado</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div>
-                    <label>Responsável</label>
-                    <input type="text" id="responsavel" placeholder="Nome do responsável">
-                </div>
-                
-                <div id="camposExtras"></div>
-                
-                <div>
-                    <label>Observações</label>
-                    <textarea id="observacao" placeholder="Informações adicionais..."></textarea>
-                </div>
-
-                <button type="submit" class="btn-salvar">Salvar Compromisso</button>
-            </form>
+            <!-- Botão Fechar (X) -->
+            <span class="fechar-detalhes">&times;</span>
+            <h2>Detalhes do Compromisso</h2>
+            <div id="conteudoDetalhes">
+                <!-- Conteúdo preenchido pelo JS -->
+            </div>
         </div>
     </div>
 
-    <div id="menuEvento" class="menu-evento">
-        <button id="btnEditar">✏️ Editar</button>
-        <button id="btnDuplicar">📄 Duplicar</button>
-        <button id="btnCancelarCompromisso">❌ Cancelar Compromisso</button>
+    <!-- MENU DE CONTEXTO (Botão Direito) -->
+    <div class="menu-evento" style="display: none; position: fixed; z-index: 1100;">
+        <button id="btnEditarCompromisso">✏️ Editar</button>
+        <button id="btnDuplicarCompromisso">📄 Duplicar</button>
+        <button id="btnCancelarCompromisso" style="color: #f59e0b;">❌ Cancelar</button>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 0;">
         <button id="btnApagar" style="color: #ef4444;">🗑️ Apagar</button>
     </div>
 
-    <div id="detalhesEvento" class="modal">
-        <div class="modal-content">
-            <span class="fechar-detalhes">&times;</span>
-            <h2>Detalhes</h2>
-            <div id="conteudoDetalhes"></div>
+    <!-- Scripts do FullCalendar e Local -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales/pt-br.global.min.js'></script>
+    <script src="script.js"></script>
+
+<!-- MODAL SEGURO DE SENHA ADMIN -->
+    <div id="modalSenhaAdmin" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 350px; text-align: center;">
+            <h2>Área Restrita</h2>
+            <label for="txtSenhaAdmin" style="margin-bottom: 10px; display: block;">Digite a senha do Administrador para apagar:</label>
+            <input type="password" id="txtSenhaAdmin" placeholder="••••••••" style="text-align: center; font-size: 18px; letter-spacing: 4px;">
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button id="btnCancelarExclusao" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; font-weight: 600;">Cancelar</button>
+                <button id="btnConfirmarExclusao" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: #ef4444; color: white; cursor: pointer; font-weight: 600;">Confirmar</button>
+            </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales-all.global.min.js"></script>
-    <script src="script.js"></script>
+    <!-- MODAL DE RELATÓRIO MENSAL -->
+    <div id="modalRelatorio" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px; width: 90%;">
+            <span class="fechar-relatorio" id="btnFecharRelatorio" style="position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;">&times;</span>
+            
+            <div id="impressaoArea">
+                <h2 style="margin-bottom: 5px; color: #1e3a8a;">📊 Relatório Operacional Mensal</h2>
+                <p id="dataRelatorio" style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Gerado em: --/--/----</p>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px;">
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🎓 Treinamentos</span><strong id="repTreinamentos" style="display:block; font-size: 18px; color: #2563eb;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🚗 Visitas</span><strong id="repVisitas" style="display:block; font-size: 18px; color: #f59e0b;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">📋 Demandas</span><strong id="repDemandas" style="display:block; font-size: 18px; color: #8b5cf6;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">❌ Cancelados</span><strong id="repCancelados" style="display:block; font-size: 18px; color: #ef4444;">0</strong></div>
+                </div>
+
+                <h3 style="font-size: 14px; color: #334155; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">Lista de Atividades do Mês</h3>
+                <div id="listaAtividadesRelatorio" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;">
+                    <!-- Preenchido dinamicamente pelo JS -->
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                <button id="btnApenasFecharRelatorio" style="padding: 10px 20px; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; font-weight: 600;">Fechar</button>
+                <button id="btnImprimirDoRelatorio" style="padding: 10px 20px; border: none; border-radius: 8px; background: #0284c7; color: white; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;">🖨️ Imprimir Relatório</button>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
