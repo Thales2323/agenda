@@ -1,105 +1,192 @@
 # 📅 Agenda VIVVER
 
-```{=html}
 <p align="center">
-```
-Sistema web para gerenciamento de agendas técnicas, visitas,
-treinamentos e demandas na área da saúde.
-```{=html}
-</p>
-```
-```{=html}
-<p align="center">
-```
+
+**Sistema web para gerenciamento de agendas técnicas, visitas institucionais, treinamentos e demandas operacionais na área da saúde.**
+
+Desenvolvido para apoiar equipes técnicas na organização, acompanhamento e controle das atividades realizadas junto às unidades de saúde do município.
+
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-blue)
 ![Version](https://img.shields.io/badge/version-2.0.0-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
-```{=html}
 </p>
-```
 
-------------------------------------------------------------------------
+---
 
 # 📌 Sobre
 
-O **Agenda Flow** é uma aplicação web desenvolvida para organizar
-agendas técnicas de equipes da saúde utilizando um calendário
-interativo, dashboard operacional e armazenamento local.
+O **Agenda VIVVER** é uma aplicação web desenvolvida para centralizar o gerenciamento das agendas das equipes técnicas da VIVVER, proporcionando maior organização, rastreabilidade e eficiência no planejamento de visitas, treinamentos e atendimentos às unidades de saúde.
 
-## ✨ Funcionalidades
+O sistema utiliza uma interface intuitiva baseada em calendário interativo, permitindo o acompanhamento das atividades em diferentes visualizações (mês, semana e dia), além de oferecer indicadores operacionais e geração de relatórios.
 
--   📅 Calendário FullCalendar (Mês, Semana e Dia)
--   ➕ Cadastro completo de compromissos
--   ✏️ Edição de eventos
--   📄 Duplicação de compromissos
--   ❌ Cancelamento com registro do responsável
--   🗑️ Exclusão protegida por senha administrativa
--   🔎 Pesquisa em tempo real
--   🏷️ Filtros por categoria
--   📊 Dashboard com indicadores
--   📄 Relatório mensal para impressão
--   💾 Persistência automática via LocalStorage
--   🖱️ Arrastar e redimensionar eventos
+---
 
-## 📋 Dados cadastrados
+# ✨ Principais Funcionalidades
+
+- 📅 Calendário interativo (FullCalendar)
+- ➕ Cadastro completo de compromissos
+- ✏️ Edição de eventos
+- 📄 Duplicação de compromissos
+- ❌ Cancelamento com registro do responsável
+- 🗑️ Exclusão protegida por senha administrativa
+- 🔎 Pesquisa em tempo real
+- 🏷️ Filtros por categoria e status
+- 📊 Dashboard com indicadores operacionais
+- 📄 Relatórios mensais para impressão
+- 💾 Persistência automática utilizando LocalStorage
+- 🖱️ Arrastar e redimensionar compromissos
+- 📌 Controle de histórico das atividades
+
+---
+
+# 📋 Informações Registradas
 
 Cada compromisso possui:
 
--   Título
--   Agente (Vivver)
--   Solicitante
--   Cargo do solicitante
--   Unidade de Saúde
--   Data e horário
--   Tipo
--   Status
--   Observações
+- Título
+- Agente responsável (Vivver)
+- Solicitante
+- Cargo do solicitante
+- Unidade de Saúde
+- Data
+- Horário
+- Tipo de atividade
+- Status
+- Observações
+- Responsável pela edição
+- Responsável pelo cancelamento
 
-## 📊 Dashboard
+---
 
--   Total de treinamentos
--   Total de visitas
--   Total de demandas
--   Total de cancelamentos
--   Próximos compromissos
--   Resumo operacional
+# 🏥 Cobertura das Unidades de Saúde
 
-## ⚡ Menu de contexto
+O sistema possui um cadastro pré-configurado das principais unidades de saúde do município de **Governador Valadares/MG**, agilizando o agendamento e padronizando o registro das atividades.
 
-Clique com o botão direito sobre um evento para:
+## Estratégias Saúde da Família (ESF)
 
--   Editar
--   Duplicar
--   Cancelar
--   Excluir
+- ESF Altinópolis
+- ESF Atalaia
+- ESF Azteca
+- ESF Carapina
+- ESF Caravelas
+- ESF Centro
+- ESF Conquista
+- ESF Esperança
+- ESF Fraternidade
+- ESF Jardim Pérola
+- ESF JK
+- ESF Lourdes
+- ESF Maria Eugênia
+- ESF Mãe de Deus
+- ESF Nossa Senhora das Graças
+- ESF Palmeiras
+- ESF Penha
+- ESF Planalto
+- ESF Santa Rita
+- ESF São Cristóvão
+- ESF São Pedro
+- ESF Sir
+- ESF Turmalina
+- ESF Vila Bretas
+- ESF Vila Isa
+- ESF Vila Mariana
 
-## 📄 Relatórios
+## Centros Especializados
 
--   Relatório operacional mensal
--   Impressão otimizada
--   Lista completa das atividades
--   Indicadores automáticos
+- CAPS II
+- CAPS AD III
+- CAPS Infantojuvenil
 
-## 🔐 Segurança
+## Hospitais
 
--   Exclusão protegida por senha
--   Registro do responsável pela edição
--   Registro do responsável pelo cancelamento
+- Hospital Municipal de Governador Valadares
+- Hospital Bom Samaritano
 
-## 🛠️ Tecnologias
+> **Obs.:** Novas unidades poderão ser adicionadas conforme a necessidade da implantação do sistema.
 
-  Tecnologia            Uso
-  --------------------- -------------------
-  HTML5                 Estrutura
-  CSS3                  Interface
-  JavaScript ES6        Regras de negócio
-  FullCalendar 6.1.18   Calendário
-  LocalStorage          Persistência
+---
 
-## 📂 Estrutura
+# 📊 Dashboard
 
-``` text
+O painel operacional apresenta indicadores em tempo real:
+
+- 📚 Total de treinamentos
+- 🚗 Total de visitas técnicas
+- 📋 Total de demandas
+- ❌ Total de cancelamentos
+- 📅 Próximos compromissos
+- 📈 Resumo operacional
+- 📊 Estatísticas por categoria
+
+---
+
+# 🖱️ Menu de Contexto
+
+Ao clicar com o botão direito sobre um compromisso é possível:
+
+- ✏️ Editar
+- 📄 Duplicar
+- ❌ Cancelar
+- 🗑️ Excluir
+
+---
+
+# 📄 Relatórios
+
+O sistema gera relatórios mensais contendo:
+
+- Relação completa dos compromissos
+- Indicadores automáticos
+- Resumo operacional
+- Impressão otimizada
+
+---
+
+# 🔐 Segurança
+
+- Exclusão protegida por senha administrativa
+- Registro do responsável por alterações
+- Registro do responsável pelo cancelamento
+- Persistência automática dos dados utilizando LocalStorage
+
+---
+
+# 🛠️ Tecnologias Utilizadas
+
+| Tecnologia | Finalidade |
+|------------|------------|
+| HTML5 | Estrutura da aplicação |
+| CSS3 | Interface responsiva |
+| JavaScript ES6 | Regras de negócio |
+| FullCalendar 6.1.18 | Calendário interativo |
+| LocalStorage | Persistência local dos dados |
+
+---
+
+# 🏗️ Arquitetura
+
+```text
+Usuário
+   │
+   ▼
+Interface (HTML/CSS)
+   │
+   ▼
+JavaScript
+   │
+   ├── FullCalendar
+   ├── Dashboard
+   ├── Relatórios
+   ├── LocalStorage
+   └── Gerenciamento de Eventos
+```
+
+---
+
+# 📂 Estrutura do Projeto
+
+```text
 Agenda-flow/
 ├── index.html
 ├── style.css
@@ -108,45 +195,56 @@ Agenda-flow/
 └── assets/
 ```
 
-## 🚀 Como executar
+---
 
-``` bash
+# 🚀 Como Executar
+
+```bash
 git clone https://github.com/Thales2323/Agenda-flow.git
+
 cd Agenda-flow
 ```
 
-Abra `index.html` em qualquer navegador moderno.
+Abra o arquivo **index.html** em qualquer navegador moderno.
 
-## 📱 Compatibilidade
+---
 
--   Chrome
--   Edge
--   Firefox
--   Opera
--   Safari
+# 🌐 Compatibilidade
 
-## 🛣️ Roadmap
+- ✅ Google Chrome
+- ✅ Microsoft Edge
+- ✅ Mozilla Firefox
+- ✅ Opera
+- ✅ Safari
 
--   [ ] Login
--   [ ] Banco de dados
--   [ ] API REST
--   [ ] Exportação PDF
--   [ ] Exportação Excel
--   [ ] Notificações
--   [ ] Controle de usuários
--   [ ] Backup automático
--   [ ] Sincronização em nuvem
+---
 
-## 👨‍💻 Desenvolvedor
+# 🛣️ Roadmap
 
-**Thales Marques Quintela (Thales2323)**
+- [ ] Sistema de Login
+- [ ] Banco de Dados
+- [ ] API REST
+- [ ] Exportação para PDF
+- [ ] Exportação para Excel
+- [ ] Controle de Usuários
+- [ ] Notificações
+- [ ] Backup Automático
+- [ ] Sincronização em Nuvem
+- [ ] Aplicação PWA
+- [ ] Integração com Google Agenda
 
-Técnico em Informática • Analista de Sistemas
+---
+
+# 👨‍💻 Desenvolvedor
+
+**Thales Marques Quintela**
+
+💼 Técnico em Informática • Analista de Sistemas
 
 GitHub: https://github.com/Thales2323
 
-Projeto: https://github.com/Thales2323/Agenda-flow
+Repositório: https://github.com/Thales2323/Agenda-flow
 
-------------------------------------------------------------------------
+---
 
-⭐ Se este projeto foi útil, deixe uma estrela no repositório.
+⭐ Se este projeto foi útil para você, considere deixar uma **⭐ Star** no repositório.
