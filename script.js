@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let idEventoSelecionado = null;
     let dataSelecionadaClique = null;
     let eventoSelecionadoParaMenu = null;
+    let nomeEditorAtual = '';
 
     // =========================================================================
     // 2. MAPEAMENTO DE ELEMENTOS DO DOM
@@ -48,10 +49,75 @@ document.addEventListener('DOMContentLoaded', function() {
     // Formulário de Cadastro/Edição
     const formCadastro = document.getElementById('formCadastroEvento') || document.querySelector('#modalCadastro form');
     const inputTitulo = document.getElementById('txtTitulo') || document.getElementById('titulo');
+    const inputAgente = document.getElementById('txtAgente');
+    const inputSolicitante = document.getElementById('txtSolicitante');
+    const inputCargoSolicitante = document.getElementById('txtCargoSolicitante');
+    const selectUnidade = document.getElementById('selUnidade');
+
+    // =========================================================================
+    // 2.1 LISTA DE MUNICÍPIOS E UNIDADES DE SAÚDE
+    // =========================================================================
+    const municipios = {
+        "Governador Valadares": [
+            "ESF Altinópolis",
+            "ESF Atalaia",
+            "ESF Azteca",
+            "ESF Carapina",
+            "ESF Caravelas",
+            "ESF Centro",
+            "ESF Conquista",
+            "ESF Esperança",
+            "ESF Fraternidade",
+            "ESF Jardim Pérola",
+            "ESF JK",
+            "ESF Lourdes",
+            "ESF Maria Eugênia",
+            "ESF Mãe de Deus",
+            "ESF Nossa Senhora das Graças",
+            "ESF Palmeiras",
+            "ESF Penha",
+            "ESF Planalto",
+            "ESF Santa Rita",
+            "ESF São Cristóvão",
+            "ESF São Pedro",
+            "ESF Sir",
+            "ESF Turmalina",
+            "ESF Vila Bretas",
+            "ESF Vila Isa",
+            "ESF Vila Mariana",
+            "CAPS II",
+            "CAPS AD III",
+            "CAPS Infantojuvenil",
+            "Hospital Municipal de Governador Valadares",
+            "Hospital Bom Samaritano",
+        ]
+    };
+
+    function popularUnidades() {
+        if (!selectUnidade) return;
+
+        selectUnidade.innerHTML = '<option value="">Selecione a unidade...</option>';
+
+        Object.keys(municipios).forEach(nomeMunicipio => {
+            const grupo = document.createElement('optgroup');
+            grupo.label = nomeMunicipio;
+
+            municipios[nomeMunicipio].forEach(unidade => {
+                const opcao = document.createElement('option');
+                opcao.value = unidade;
+                opcao.textContent = unidade;
+                grupo.appendChild(opcao);
+            });
+
+            selectUnidade.appendChild(grupo);
+        });
+    }
+
+    popularUnidades();
     const inputData = document.getElementById('txtData') || document.getElementById('data');
     const inputHoraInicio = document.getElementById('txtHoraInicio') || document.getElementById('horaInicio');
-    const inputHoraFim = document.getElementById('txtHoraFim') || document.getElementById('horaFim');
     const selectTipo = document.getElementById('selTipo') || document.getElementById('tipo');
+    const selectStatus = document.getElementById('selStatus');
     const txtDescricao = document.getElementById('txtDescricao') || document.getElementById('descricao');
 
     // =========================================================================
@@ -176,30 +242,37 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function abrirModalCadastro(editar = false, event = null) {
         modoEdicao = editar;
+        const tituloModal = document.getElementById('tituloModalCadastro');
+        if (tituloModal) tituloModal.innerText = editar ? 'Editar Compromisso' : 'Novo Compromisso';
         
         if (editar && event) {
             idEventoSelecionado = event.id;
-            if (inputTitulo) inputTitulo.value = event.title;
+
+            // Remove sufixos legados de "- Editado por X" / "- Cancelado por X"
+            // para não deixar o título com marcações antigas ao reativar um compromisso
+            const tituloLimpo = (event.title || '').split(' - Editado por')[0].split(' - Cancelado por')[0];
+            if (inputTitulo) inputTitulo.value = tituloLimpo;
             
             // Separa Data e Hora no formato ISO (YYYY-MM-DD)
             const dataIso = event.startStr.split('T')[0];
             if (inputData) inputData.value = dataIso;
             
-            const horaIn = event.startStr.split('T')[1] ? event.startStr.split('T')[1].substring(0,5) : '08:00';
+            const horaIn = event.startStr.split('T')[1] ? event.startStr.split('T')[1].substring(0,5) : '';
             if (inputHoraInicio) inputHoraInicio.value = horaIn;
             
-            if (event.endStr && inputHoraFim) {
-                inputHoraFim.value = event.endStr.split('T')[1].substring(0,5);
-            } else if (inputHoraFim) {
-                inputHoraFim.value = '18:00';
-            }
-            
+            if (inputAgente) inputAgente.value = event.extendedProps.agente || '';
+            if (inputSolicitante) inputSolicitante.value = event.extendedProps.solicitante || '';
+            if (inputCargoSolicitante) inputCargoSolicitante.value = event.extendedProps.cargoSolicitante || '';
+            if (selectUnidade) selectUnidade.value = event.extendedProps.unidade || '';
             if (selectTipo) selectTipo.value = event.extendedProps.tipo || 'Treinamento';
+            if (selectStatus) selectStatus.value = event.extendedProps.status || 'Aguardando Confirmação';
             if (txtDescricao) txtDescricao.value = event.extendedProps.descricao || '';
         } else {
             idEventoSelecionado = null;
             if (formCadastro) formCadastro.reset();
             if (inputData && dataSelecionadaClique) inputData.value = dataSelecionadaClique;
+            if (inputHoraInicio) inputHoraInicio.value = '';
+            if (selectStatus) selectStatus.value = 'Aguardando Confirmação';
         }
 
         if (modalCadastro) modalCadastro.style.display = 'flex';
@@ -210,14 +283,19 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
 
             const dataFormatada = inputData.value;
-            const dataHoraInicio = `${dataFormatada}T${inputHoraInicio.value || '08:00'}:00`;
-            const dataHoraFim = `${dataFormatada}T${inputHoraFim.value || '18:00'}:00`;
+            const dataHoraInicio = `${dataFormatada}T${inputHoraInicio.value}:00`;
 
             let classeCor = 'evento-padrao';
             if (selectTipo.value === 'Treinamento') classeCor = 'evento-treinamento';
             else if (selectTipo.value === 'Visita') classeCor = 'evento-visita';
             else if (selectTipo.value === 'Demanda') classeCor = 'evento-demanda';
             else if (selectTipo.value === 'Cancelado' || selectTipo.value === 'Cancelamento') classeCor = 'evento-cancelado';
+
+            const agente = inputAgente ? inputAgente.value : '';
+            const solicitante = inputSolicitante ? inputSolicitante.value : '';
+            const cargoSolicitante = inputCargoSolicitante ? inputCargoSolicitante.value : '';
+            const unidade = selectUnidade ? selectUnidade.value : '';
+            const status = selectStatus ? selectStatus.value : 'Aguardando Confirmação';
 
             if (modoEdicao && idEventoSelecionado) {
                 // Modo Edição: Atualiza registro no Array principal
@@ -227,23 +305,36 @@ document.addEventListener('DOMContentLoaded', function() {
                             ...c,
                             title: inputTitulo.value,
                             start: dataHoraInicio,
-                            end: dataHoraFim,
                             tipo: selectTipo.value,
                             className: classeCor,
-                            descricao: txtDescricao.value
+                            agente: agente,
+                            solicitante: solicitante,
+                            cargoSolicitante: cargoSolicitante,
+                            unidade: unidade,
+                            status: status,
+                            descricao: txtDescricao.value,
+                            editadoPor: nomeEditorAtual || c.editadoPor || '',
+                            // Se o compromisso foi reativado (tipo diferente de Cancelado),
+                            // remove a marcação de quem cancelou
+                            canceladoPor: selectTipo.value === 'Cancelado' ? c.canceladoPor : ''
                         };
                     }
                     return c;
                 });
+                nomeEditorAtual = '';
             } else {
                 // Modo Criação: Dá um push de um novo objeto JSON completo
                 const novoEvento = {
                     id: String(Date.now()),
                     title: inputTitulo.value,
                     start: dataHoraInicio,
-                    end: dataHoraFim,
                     tipo: selectTipo.value,
                     className: classeCor,
+                    agente: agente,
+                    solicitante: solicitante,
+                    cargoSolicitante: cargoSolicitante,
+                    unidade: unidade,
+                    status: status,
                     descricao: txtDescricao.value
                 };
                 compromissos.push(novoEvento);
@@ -275,17 +366,91 @@ document.addEventListener('DOMContentLoaded', function() {
     // =========================================================================
     // 6. DETALHES, MODAL DE FECHAMENTO (O BOTÃO 'X')
     // =========================================================================
+    // Mapeia cada tipo de compromisso para um ícone
+    const iconesTipo = {
+        'Treinamento': '🎓',
+        'Visita': '🚗',
+        'Demanda': '📋',
+        'Cancelado': '❌'
+    };
+
+    // Mapeia cada status para uma classe de cor do selo (badge)
+    const classesStatus = {
+        'Aguardando Confirmação': 'badge-aguardando',
+        'Confirmado': 'badge-confirmado',
+        'Remarcado': 'badge-remarcado',
+        'Não Compareceu': 'badge-nao-compareceu'
+    };
+
     function abrirModalDetalhes(event) {
         const conteudo = document.getElementById('conteudoDetalhes');
         if (modalDetalhes && conteudo) {
             const desc = event.extendedProps.descricao || 'Sem descrição cadastrada.';
             const tipo = event.extendedProps.tipo || 'Padrão';
-            
+            const agente = event.extendedProps.agente || 'Não informado';
+            const solicitante = event.extendedProps.solicitante || 'Não informado';
+            const cargoSolicitante = event.extendedProps.cargoSolicitante || '';
+            const unidade = event.extendedProps.unidade || 'Não informado';
+            const status = event.extendedProps.status || 'Não informado';
+
+            const icone = iconesTipo[tipo] || '📌';
+            const statusExibido = tipo === 'Cancelado' ? 'Cancelado' : status;
+            const classeBadge = tipo === 'Cancelado' ? 'badge-cancelado' : (classesStatus[status] || 'badge-aguardando');
+            const canceladoPor = event.extendedProps.canceladoPor || '';
+
+            const dataObj = event.start;
+            const dataFormatada = dataObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const horaFormatada = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
             conteudo.innerHTML = `
-                <p><strong>Compromisso:</strong> ${event.title}</p>
-                <p><strong>Horário de Início:</strong> ${event.start.toLocaleString('pt-BR')}</p>
-                <p><strong>Categoria:</strong> ${tipo}</p>
-                <p><strong>Notas de Campo:</strong> ${desc}</p>
+                <div class="detalhe-cabecalho">
+                    <div class="detalhe-icone-tipo">${icone}</div>
+                    <div>
+                        <h3 class="detalhe-titulo">${event.title}</h3>
+                        <span class="detalhe-badge ${classeBadge}">${statusExibido}</span>
+                    </div>
+                </div>
+
+                <div class="detalhe-grid">
+                    <div class="detalhe-item">
+                        <span class="detalhe-label">📅 Data</span>
+                        <span class="detalhe-valor">${dataFormatada}</span>
+                    </div>
+                    <div class="detalhe-item">
+                        <span class="detalhe-label">🕒 Hora</span>
+                        <span class="detalhe-valor">${horaFormatada}</span>
+                    </div>
+                    <div class="detalhe-item">
+                        <span class="detalhe-label">🏷️ Categoria</span>
+                        <span class="detalhe-valor">${tipo}</span>
+                    </div>
+                    <div class="detalhe-item">
+                        <span class="detalhe-label">🏥 Unidade</span>
+                        <span class="detalhe-valor">${unidade}</span>
+                    </div>
+                </div>
+
+                <div class="detalhe-secao">
+                    <div class="detalhe-secao-titulo">👤 Responsáveis</div>
+                    <div class="detalhe-item-linha">
+                        <span class="detalhe-label">Agente (Vivver)</span>
+                        <span class="detalhe-valor">${agente}</span>
+                    </div>
+                    <div class="detalhe-item-linha">
+                        <span class="detalhe-label">Solicitado por</span>
+                        <span class="detalhe-valor">${solicitante}${cargoSolicitante ? ' <span class="detalhe-cargo">(' + cargoSolicitante + ')</span>' : ''}</span>
+                    </div>
+                    ${tipo === 'Cancelado' && canceladoPor ? `
+                    <div class="detalhe-item-linha">
+                        <span class="detalhe-label">❌ Cancelado por</span>
+                        <span class="detalhe-valor">${canceladoPor}</span>
+                    </div>` : ''}
+                </div>
+
+                <div class="detalhe-secao">
+                    <div class="detalhe-secao-titulo">📝 Notas de Campo</div>
+                    <p class="detalhe-obs">${desc}</p>
+                </div>
             `;
             modalDetalhes.style.display = 'flex';
         }
@@ -325,29 +490,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (menuContexto) menuContexto.style.display = 'none';
     });
 
-    // ✏️ Ação: EDITAR (Pede nome e anexa ao título)
+    // ✏️ Ação: EDITAR (Pergunta quem está editando e abre o formulário completo, pré-preenchido)
     document.getElementById('btnEditarCompromisso').addEventListener('click', function() {
         if (eventoSelecionadoParaMenu) {
             const nomeEditor = prompt("Quem está editando este compromisso?");
-            
+
             if (nomeEditor && nomeEditor.trim() !== "") {
-                compromissos = compromissos.map(c => {
-                    if (c.id === eventoSelecionadoParaMenu.id) {
-                        // Remove marcações antigas de edição/cancelamento se houverem
-                        let tituloLimpo = c.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
-                        return { 
-                            ...c, 
-                            title: `${tituloLimpo} - Editado por ${nomeEditor.trim()}` 
-                        };
-                    }
-                    return c;
-                });
-                
-                calendar.removeAllEvents();
-                calendar.addEventSource(compromissos);
-                atualizarDashboard();
+                nomeEditorAtual = nomeEditor.trim();
+                abrirModalCadastro(true, eventoSelecionadoParaMenu);
             } else if (nomeEditor !== null) {
-                alert("Operação cancelada: O nome do editor é obrigatório.");
+                alert("Operação cancelada: o nome de quem está editando é obrigatório.");
             }
         }
     });
@@ -370,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // ❌ Ação: CANCELAR (Pede nome, muda status e anexa ao título)
+    // ❌ Ação: CANCELAR (Pede nome, muda status/tipo e registra quem cancelou)
     document.getElementById('btnCancelarCompromisso').addEventListener('click', function() {
         if (eventoSelecionadoParaMenu) {
             const nomeCancelador = prompt("Quem está cancelando este compromisso?");
@@ -378,12 +530,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (nomeCancelador && nomeCancelador.trim() !== "") {
                 compromissos = compromissos.map(c => {
                     if (c.id === eventoSelecionadoParaMenu.id) {
-                        let tituloLimpo = c.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
+                        // Remove sufixos antigos que porventura estejam presos ao título
+                        const tituloLimpo = c.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
                         return { 
                             ...c, 
                             tipo: 'Cancelado', 
                             className: 'evento-cancelado',
-                            title: `${tituloLimpo} - Cancelado por ${nomeCancelador.trim()}` 
+                            title: tituloLimpo,
+                            canceladoPor: nomeCancelador.trim()
                         };
                     }
                     return c;

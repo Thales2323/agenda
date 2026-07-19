@@ -69,12 +69,89 @@
         </div>
     </main>
 
+    <!-- MODAL DE CADASTRO/EDIÇÃO DE COMPROMISSO -->
+    <div id="modalCadastro" class="modal">
+        <div class="modal-content">
+            <span class="fechar-cadastro">&times;</span>
+            <h2 id="tituloModalCadastro">Novo Compromisso</h2>
+            <form id="formCadastroEvento">
+                <div class="form-group">
+                    <label for="txtTitulo">Título</label>
+                    <input type="text" id="txtTitulo" required placeholder="Ex: Visita técnica - ESF Centro">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="txtAgente">Agente (Vivver)</label>
+                        <input type="text" id="txtAgente" required placeholder="Nome do agente que está marcando">
+                    </div>
+                    <div class="form-group">
+                        <label for="txtSolicitante">Solicitado por</label>
+                        <input type="text" id="txtSolicitante" required placeholder="Nome de quem solicitou">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="txtCargoSolicitante">Cargo do Solicitante</label>
+                    <input type="text" id="txtCargoSolicitante" required placeholder="Ex: Enfermeira, Coordenador, Recepção...">
+                </div>
+
+                <div class="form-group">
+                    <label for="selUnidade">Unidade de Saúde</label>
+                    <select id="selUnidade" required>
+                        <!-- Preenchido dinamicamente pelo script.js (objeto "municipios") -->
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="txtData">Data</label>
+                        <input type="date" id="txtData" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="txtHoraInicio">Hora</label>
+                        <input type="time" id="txtHoraInicio" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="selTipo">Tipo</label>
+                    <select id="selTipo" required>
+                        <option value="Treinamento">🎓 Treinamento</option>
+                        <option value="Visita">🚗 Visita</option>
+                        <option value="Demanda">📋 Demanda</option>
+                        <option value="Cancelado" hidden>❌ Cancelado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="selStatus">Status</label>
+                    <select id="selStatus" required>
+                        <option value="Aguardando Confirmação">🟡 Aguardando Confirmação</option>
+                        <option value="Confirmado">🟢 Confirmado</option>
+                        <option value="Remarcado">🔵 Remarcado</option>
+                        <option value="Não Compareceu">🔴 Não Compareceu</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="txtDescricao">Descrição</label>
+                    <textarea id="txtDescricao" rows="3" required placeholder="Observações adicionais..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-salvar">💾 Salvar Compromisso</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL DE DETALHES (Onde o 'X' deve funcionar) -->
     <div id="modalDetalhes" class="modal">
         <div class="modal-content">
             <!-- Botão Fechar (X) -->
             <span class="fechar-detalhes">&times;</span>
-            <h2>Detalhes do Compromisso</h2>
+            <p class="detalhe-eyebrow">DETALHES DO COMPROMISSO</p>
             <div id="conteudoDetalhes">
                 <!-- Conteúdo preenchido pelo JS -->
             </div>
