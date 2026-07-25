@@ -1,4 +1,52 @@
 document.addEventListener('DOMContentLoaded', function() {
+
+// ==========================
+// LOGIN
+// ==========================
+
+const usuarios = [
+    { usuario: "Eder", senha: "&-'p;o", role: "usuario" },
+    { usuario: "Gabriel", senha: "&v=]y4", role: "usuario" },
+    { usuario: "Thales", senha: "l+pt4c", role: "admin" },
+    { usuario: "Eduardo", senha: "sufutu", role: "usuario" },
+    { usuario: "Paulo", senha: "&d.j~@", role: "usuario" },
+    { usuario: "Visualizacao", senha: "ver2026", role: "visualizador" }
+];
+
+// Mescla com o que já está salvo no navegador: usuários novos (do código) são
+// adicionados, e a role/senha "de fábrica" destes usuários é sempre sincronizada,
+// mas usuários criados depois pelo Admin (que não estão nesta lista) são preservados.
+let usuariosSalvos = JSON.parse(localStorage.getItem("usuarios")) || [];
+usuarios.forEach(u => {
+    const idx = usuariosSalvos.findIndex(x => x.usuario === u.usuario);
+    if (idx === -1) {
+        usuariosSalvos.push(u);
+    } else {
+        usuariosSalvos[idx].role = u.role;
+    }
+});
+localStorage.setItem("usuarios", JSON.stringify(usuariosSalvos));
+
+let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
+
+// Compatibilidade: sessões antigas sem "role" salvo são tratadas como usuário comum
+const somenteVisualizacao = !!(usuarioLogado && usuarioLogado.role === "visualizador");
+const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
+
+    const telaLogin = document.getElementById("loginTela");
+    const sistema = document.getElementById("sistema");
+
+    if(usuarioLogado){
+
+        telaLogin.style.display="none";
+        sistema.style.display="block";
+
+    }else{
+
+        telaLogin.style.display="flex";
+        sistema.style.display="none";
+
+    }
     
     // =========================================================================
     // 1. ESTADO GLOBAL E PERSISTÊNCIA (LOCALSTORAGE)
@@ -37,6 +85,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const inputBusca = document.querySelector('.busca input');
     const botoesFiltro = document.querySelectorAll('.filtro');
     const menuContexto = document.querySelector('.menu-evento');
+    const btnApagarEvento = document.getElementById('btnApagar');
+    const divisorApagar = document.getElementById('divisorApagar');
+    if (!isAdmin) {
+        if (btnApagarEvento) btnApagarEvento.style.display = 'none';
+        if (divisorApagar) divisorApagar.style.display = 'none';
+    }
     
     // Modais
     const modalDetalhes = document.getElementById('modalDetalhes');
@@ -139,8 +193,8 @@ document.addEventListener('DOMContentLoaded', function() {
             day: 'Dia'
         },
         events: compromissos,
-        editable: true,
-        selectable: true,
+        editable: !somenteVisualizacao,
+        selectable: !somenteVisualizacao,
 
         // Clique em um dia vazio -> Abre modal de Cadastro
         select: function(info) {
@@ -273,6 +327,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (inputData && dataSelecionadaClique) inputData.value = dataSelecionadaClique;
             if (inputHoraInicio) inputHoraInicio.value = '';
             if (selectStatus) selectStatus.value = 'Aguardando Confirmação';
+            if (inputAgente) inputAgente.value = usuarioLogado ? usuarioLogado.usuario : '';
         }
 
         if (modalCadastro) modalCadastro.style.display = 'flex';
@@ -325,17 +380,19 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 // Modo Criação: Dá um push de um novo objeto JSON completo
                 const novoEvento = {
-                    id: String(Date.now()),
-                    title: inputTitulo.value,
-                    start: dataHoraInicio,
-                    tipo: selectTipo.value,
-                    className: classeCor,
-                    agente: agente,
-                    solicitante: solicitante,
-                    cargoSolicitante: cargoSolicitante,
-                    unidade: unidade,
-                    status: status,
-                    descricao: txtDescricao.value
+
+                    id:String(Date.now()),
+                    title:inputTitulo.value,
+                    start:dataHoraInicio,
+                    criadoPor:usuarioLogado.usuario,
+                    tipo:selectTipo.value,
+                    className:classeCor,
+                    agente:agente,
+                    solicitante:solicitante,
+                    cargoSolicitante:cargoSolicitante,
+                    unidade:unidade,
+                    status:status,
+                    descricao:txtDescricao.value
                 };
                 compromissos.push(novoEvento);
             }
@@ -392,6 +449,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const cargoSolicitante = event.extendedProps.cargoSolicitante || '';
             const unidade = event.extendedProps.unidade || 'Não informado';
             const status = event.extendedProps.status || 'Não informado';
+            const criadoPor = event.extendedProps.criadoPor || "";
 
             const icone = iconesTipo[tipo] || '📌';
             const statusExibido = tipo === 'Cancelado' ? 'Cancelado' : status;
@@ -468,6 +526,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 7. MECANISMO DE CONTEXTMENU (BOTAO DIREITO: EDITAR, DUPLICAR, CANCELAR, APAGAR)
     // =========================================================================
     calendarEl.addEventListener('contextmenu', function(e) {
+        if (somenteVisualizacao) { e.preventDefault(); return; }
+
         const blocoEventoVisual = e.target.closest('.fc-daygrid-event');
         if (blocoEventoVisual && menuContexto) {
             e.preventDefault(); 
@@ -560,6 +620,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 🗑️ Ação: APAGAR (Abre o modal seguro mascarado)
     document.getElementById('btnApagar').addEventListener('click', function() {
+        if (!isAdmin) return;
         if (eventoSelecionadoParaMenu) {
             if (inputSenhaAdmin) inputSenhaAdmin.value = ''; // Limpa digitações anteriores
             if (modalSenhaAdmin) modalSenhaAdmin.style.display = 'flex';
@@ -705,6 +766,162 @@ document.addEventListener('DOMContentLoaded', function() {
     // Funções para fechar o relatório
     if (btnFecharRelatorio) btnFecharRelatorio.addEventListener('click', () => modalRelatorio.style.display = 'none');
     if (btnApenasFecharRelatorio) btnApenasFecharRelatorio.addEventListener('click', () => modalRelatorio.style.display = 'none');
+    
+    const btnLogout = document.getElementById("btnLogout");
+    if (btnLogout) {
+        btnLogout.addEventListener("click", function() {
+            localStorage.removeItem("usuarioLogado");
+            location.reload();
+        });
+    }
+
+    // =========================================================================
+    // 9. PAINEL DE ADMINISTRAÇÃO (SOMENTE ADMIN)
+    // =========================================================================
+    const btnAdmin = document.getElementById("btnAdmin");
+    const modalAdmin = document.getElementById("modalAdmin");
+    const fecharAdmin = document.querySelector(".fechar-admin");
+    const formUsuarioAdmin = document.getElementById("formUsuarioAdmin");
+    const txtNovoUsuario = document.getElementById("txtNovoUsuario");
+    const txtNovaSenha = document.getElementById("txtNovaSenha");
+    const selNovoRole = document.getElementById("selNovoRole");
+    const usuarioOriginalEdicao = document.getElementById("usuarioOriginalEdicao");
+    const btnSalvarUsuarioAdmin = document.getElementById("btnSalvarUsuarioAdmin");
+    const btnCancelarEdicaoUsuario = document.getElementById("btnCancelarEdicaoUsuario");
+    const listaUsuariosAdmin = document.getElementById("listaUsuariosAdmin");
+
+    const rotulosRole = { admin: "Admin", usuario: "Usuário", visualizador: "Visualização" };
+
+    if (isAdmin && btnAdmin) btnAdmin.style.display = "inline-block";
+
+    function pegarUsuarios() {
+        return JSON.parse(localStorage.getItem("usuarios")) || [];
+    }
+
+    function resetarFormularioUsuario() {
+        if (formUsuarioAdmin) formUsuarioAdmin.reset();
+        if (usuarioOriginalEdicao) usuarioOriginalEdicao.value = "";
+        if (txtNovoUsuario) txtNovoUsuario.disabled = false;
+        if (btnSalvarUsuarioAdmin) btnSalvarUsuarioAdmin.innerHTML = "➕ Adicionar Usuário";
+        if (btnCancelarEdicaoUsuario) btnCancelarEdicaoUsuario.style.display = "none";
+    }
+
+    function renderizarListaUsuarios() {
+        if (!listaUsuariosAdmin) return;
+        const lista = pegarUsuarios();
+        listaUsuariosAdmin.innerHTML = "";
+
+        lista.forEach(u => {
+            const div = document.createElement("div");
+            div.className = "item-usuario-admin";
+            div.innerHTML = `
+                <span class="nome-usuario-admin">${u.usuario}<span class="badge-role badge-role-${u.role}">${rotulosRole[u.role] || u.role}</span></span>
+                <span class="acoes-usuario-admin">
+                    <button class="btn-editar-usuario">✏️ Editar</button>
+                    <button class="btn-apagar-usuario">🗑️ Apagar</button>
+                </span>
+            `;
+
+            div.querySelector(".btn-editar-usuario").addEventListener("click", function() {
+                txtNovoUsuario.value = u.usuario;
+                txtNovoUsuario.disabled = true; // não deixa trocar o nome de login numa edição, evita duplicidade
+                txtNovaSenha.value = u.senha;
+                selNovoRole.value = u.role;
+                usuarioOriginalEdicao.value = u.usuario;
+                btnSalvarUsuarioAdmin.innerHTML = "💾 Salvar Alterações";
+                btnCancelarEdicaoUsuario.style.display = "inline-block";
+                formUsuarioAdmin.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+
+            div.querySelector(".btn-apagar-usuario").addEventListener("click", function() {
+                if (usuarioLogado && usuarioLogado.usuario === u.usuario) {
+                    alert("🚫 Você não pode apagar o usuário com o qual está logado.");
+                    return;
+                }
+                const totalAdmins = lista.filter(x => x.role === "admin").length;
+                if (u.role === "admin" && totalAdmins <= 1) {
+                    alert("🚫 Não é possível apagar o último Admin do sistema.");
+                    return;
+                }
+                if (confirm(`Tem certeza que deseja apagar o usuário "${u.usuario}"?`)) {
+                    const novaLista = lista.filter(x => x.usuario !== u.usuario);
+                    localStorage.setItem("usuarios", JSON.stringify(novaLista));
+                    renderizarListaUsuarios();
+                }
+            });
+
+            listaUsuariosAdmin.appendChild(div);
+        });
+    }
+
+    if (btnAdmin) {
+        btnAdmin.addEventListener("click", function() {
+            resetarFormularioUsuario();
+            renderizarListaUsuarios();
+            if (modalAdmin) modalAdmin.style.display = "flex";
+        });
+    }
+
+    if (fecharAdmin) {
+        fecharAdmin.addEventListener("click", () => modalAdmin.style.display = "none");
+    }
+
+    if (btnCancelarEdicaoUsuario) {
+        btnCancelarEdicaoUsuario.addEventListener("click", resetarFormularioUsuario);
+    }
+
+    if (formUsuarioAdmin) {
+        formUsuarioAdmin.addEventListener("submit", function(e) {
+            e.preventDefault();
+
+            const nomeDigitado = txtNovoUsuario.value.trim();
+            const senhaDigitada = txtNovaSenha.value.trim();
+            const roleEscolhida = selNovoRole.value;
+            const emEdicao = usuarioOriginalEdicao.value;
+            let lista = pegarUsuarios();
+
+            if (emEdicao) {
+                // Editando um usuário já existente
+                lista = lista.map(u => {
+                    if (u.usuario === emEdicao) {
+                        return { usuario: u.usuario, senha: senhaDigitada, role: roleEscolhida };
+                    }
+                    return u;
+                });
+
+                // Se o usuário editado é o que está logado agora, atualiza a sessão também
+                if (usuarioLogado && usuarioLogado.usuario === emEdicao) {
+                    const atualizado = lista.find(u => u.usuario === emEdicao);
+                    localStorage.setItem("usuarioLogado", JSON.stringify(atualizado));
+                }
+            } else {
+                // Criando um usuário novo
+                if (lista.find(u => u.usuario.toLowerCase() === nomeDigitado.toLowerCase())) {
+                    alert("🚫 Já existe um usuário com esse nome de login.");
+                    return;
+                }
+                lista.push({ usuario: nomeDigitado, senha: senhaDigitada, role: roleEscolhida });
+            }
+
+            localStorage.setItem("usuarios", JSON.stringify(lista));
+            resetarFormularioUsuario();
+            renderizarListaUsuarios();
+        });
+    }
+
+    document.getElementById("btnLogin").onclick=function(){
+    const usuario=document.getElementById("usuario").value;
+    const senha=document.getElementById("senha").value;
+    const lista=JSON.parse(localStorage.getItem("usuarios"));
+    const login=lista.find(x=>x.usuario==usuario && x.senha==senha);
+    if(login){
+        localStorage.setItem("usuarioLogado",JSON.stringify(login));
+        location.reload();
+    }else{
+        document.getElementById("erroLogin").innerHTML="Usuário ou senha inválidos.";
+    }
+};
+    
     // Executa a primeira carga limpando caches e construindo o dashboard
     atualizarDashboard();
 });
