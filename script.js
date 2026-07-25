@@ -1021,5 +1021,21 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     // Executa a primeira carga (só se já estiver logado, evita chamada desnecessária ao Supabase)
     if (usuarioLogado) {
         await carregarCompromissos();
+
+        // =========================================================================
+        // 10. ATUALIZAÇÃO AUTOMÁTICA (SUPABASE REALTIME)
+        // Sempre que ALGUÉM criar, editar, cancelar ou apagar um compromisso,
+        // todo mundo que estiver com a agenda aberta recebe a atualização na hora,
+        // sem precisar apertar F5.
+        // =========================================================================
+        let debounceRealtime = null;
+        supabaseClient
+            .channel('compromissos-mudancas')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'compromissos' }, () => {
+                // Agrupa várias mudanças que cheguem juntas numa só atualização da tela
+                clearTimeout(debounceRealtime);
+                debounceRealtime = setTimeout(carregarCompromissos, 300);
+            })
+            .subscribe();
     }
 });
