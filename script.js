@@ -1,35 +1,20 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+
+// ==========================
+// CONEXÃO COM O SUPABASE
+// ==========================
+const SUPABASE_URL = 'https://pjzjlckhwjgdibhhlffj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_5kP1SdaVUZTph0xdSgK-Ug_egN_B0T4';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ==========================
 // LOGIN
 // ==========================
-
-const usuarios = [
-    { usuario: "Eder", senha: "&-'p;o", role: "usuario" },
-    { usuario: "Gabriel", senha: "&v=]y4", role: "usuario" },
-    { usuario: "Thales", senha: "l+pt4c", role: "admin" },
-    { usuario: "Eduardo", senha: "sufutu", role: "usuario" },
-    { usuario: "Paulo", senha: "&d.j~@", role: "usuario" },
-    { usuario: "Visualizacao", senha: "ver2026", role: "visualizador" }
-];
-
-// Mescla com o que já está salvo no navegador: usuários novos (do código) são
-// adicionados, e a role/senha "de fábrica" destes usuários é sempre sincronizada,
-// mas usuários criados depois pelo Admin (que não estão nesta lista) são preservados.
-let usuariosSalvos = JSON.parse(localStorage.getItem("usuarios")) || [];
-usuarios.forEach(u => {
-    const idx = usuariosSalvos.findIndex(x => x.usuario === u.usuario);
-    if (idx === -1) {
-        usuariosSalvos.push(u);
-    } else {
-        usuariosSalvos[idx].role = u.role;
-    }
-});
-localStorage.setItem("usuarios", JSON.stringify(usuariosSalvos));
-
+// OBS: quem está logado no NAVEGADOR continua guardado no localStorage
+// (é só a sessão local desta aba/computador). Usuários e compromissos
+// agora vivem no Supabase, compartilhados entre todo mundo.
 let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
 
-// Compatibilidade: sessões antigas sem "role" salvo são tratadas como usuário comum
 const somenteVisualizacao = !!(usuarioLogado && usuarioLogado.role === "visualizador");
 const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
 
@@ -47,30 +32,54 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         sistema.style.display="none";
 
     }
-    
+
     // =========================================================================
-    // 1. ESTADO GLOBAL E PERSISTÊNCIA (LOCALSTORAGE)
+    // 0. CONVERSÕES ENTRE O FORMATO DO BANCO (SUPABASE) E O FORMATO DO APP
     // =========================================================================
-    let compromissos = JSON.parse(localStorage.getItem('compromissos')) || [
-        {
-            id: '1710000000000',
-            title: 'Treinamento - ESF Altinópolis',
-            start: '2026-07-17T09:00:00',
-            end: '2026-07-17T11:00:00',
-            tipo: 'Treinamento',
-            className: 'evento-treinamento',
-            descricao: 'Treinamento do sistema com a equipe local.'
-        },
-        {
-            id: '1710000000001',
-            title: 'Visita - ESF Altinópolis',
-            start: '2026-07-17T15:00:00',
-            end: '2026-07-17T16:30:00',
-            tipo: 'Visita',
-            className: 'evento-visita',
-            descricao: 'Visita técnica de acompanhamento.'
-        }
-    ];
+    function linhaParaCompromisso(row) {
+        return {
+            id: row.id,
+            title: row.title,
+            start: row.start,
+            end: row.end || undefined,
+            tipo: row.tipo,
+            className: row.classname || 'evento-padrao',
+            descricao: row.descricao || '',
+            agente: row.agente || '',
+            solicitante: row.solicitante || '',
+            cargoSolicitante: row.cargo_solicitante || '',
+            unidade: row.unidade || '',
+            status: row.status || '',
+            criadoPor: row.criado_por || '',
+            editadoPor: row.editado_por || '',
+            canceladoPor: row.cancelado_por || ''
+        };
+    }
+
+    function compromissoParaLinha(c) {
+        return {
+            id: c.id,
+            title: c.title,
+            start: c.start,
+            end: c.end || null,
+            tipo: c.tipo,
+            classname: c.className || 'evento-padrao',
+            descricao: c.descricao || '',
+            agente: c.agente || '',
+            solicitante: c.solicitante || '',
+            cargo_solicitante: c.cargoSolicitante || '',
+            unidade: c.unidade || '',
+            status: c.status || '',
+            criado_por: c.criadoPor || '',
+            editado_por: c.editadoPor || '',
+            cancelado_por: c.canceladoPor || ''
+        };
+    }
+
+    // =========================================================================
+    // 1. ESTADO GLOBAL (AGORA CARREGADO DO SUPABASE)
+    // =========================================================================
+    let compromissos = [];
 
     let modoEdicao = false;
     let idEventoSelecionado = null;
@@ -192,7 +201,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             week: 'Semana',
             day: 'Dia'
         },
-        events: compromissos,
+        events: [],
         editable: !somenteVisualizacao,
         selectable: !somenteVisualizacao,
 
@@ -207,12 +216,12 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             abrirModalDetalhes(info.event);
         },
 
-        // Arrastar e soltar evento -> Atualiza a data no Array/Banco
+        // Arrastar e soltar evento -> Atualiza a data no Supabase
         eventDrop: function(info) {
             atualizarDataEvento(info.event);
         },
 
-        // Redimensionar tempo do evento -> Atualiza no Array/Banco
+        // Redimensionar tempo do evento -> Atualiza no Supabase
         eventResize: function(info) {
             atualizarDataEvento(info.event);
         },
@@ -225,6 +234,26 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     });
 
     calendar.render();
+
+    // =========================================================================
+    // 3.1 CARREGA OS COMPROMISSOS DO SUPABASE
+    // =========================================================================
+    async function carregarCompromissos() {
+        const { data, error } = await supabaseClient
+            .from('compromissos')
+            .select('*')
+            .order('start', { ascending: true });
+
+        if (error) {
+            alert('⚠️ Erro ao carregar compromissos do Supabase: ' + error.message);
+            return;
+        }
+
+        compromissos = (data || []).map(linhaParaCompromisso);
+        calendar.removeAllEvents();
+        calendar.addEventSource(compromissos);
+        atualizarDashboard();
+    }
 
     // =========================================================================
     // 4. SISTEMA DE DASHBOARD, INTEGRAÇÃO DE CARDS E LISTAS
@@ -285,13 +314,10 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                 <p style="font-size: 11px; color:#64748b; margin-top:5px;">Clique com o botão direito nos blocos do calendário para ver ações rápidas.</p>
             `;
         }
-
-        // Salva o array atualizado no LocalStorage do Navegador
-        localStorage.setItem('compromissos', JSON.stringify(compromissos));
     }
 
     // =========================================================================
-    // 5. OPERAÇÕES DE CRUD (SALVAR, CRIAR, ATUALIZAR, SOLTAR)
+    // 5. OPERAÇÕES DE CRUD (SALVAR, CRIAR, ATUALIZAR, SOLTAR) — VIA SUPABASE
     // =========================================================================
     
     function abrirModalCadastro(editar = false, event = null) {
@@ -334,7 +360,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     }
 
     if (formCadastro) {
-        formCadastro.addEventListener('submit', function(e) {
+        formCadastro.addEventListener('submit', async function(e) {
             e.preventDefault();
 
             const dataFormatada = inputData.value;
@@ -352,72 +378,90 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             const unidade = selectUnidade ? selectUnidade.value : '';
             const status = selectStatus ? selectStatus.value : 'Aguardando Confirmação';
 
-            if (modoEdicao && idEventoSelecionado) {
-                // Modo Edição: Atualiza registro no Array principal
-                compromissos = compromissos.map(c => {
-                    if (c.id === idEventoSelecionado) {
-                        return {
-                            ...c,
-                            title: inputTitulo.value,
-                            start: dataHoraInicio,
-                            tipo: selectTipo.value,
-                            className: classeCor,
-                            agente: agente,
-                            solicitante: solicitante,
-                            cargoSolicitante: cargoSolicitante,
-                            unidade: unidade,
-                            status: status,
-                            descricao: txtDescricao.value,
-                            editadoPor: nomeEditorAtual || c.editadoPor || '',
-                            // Se o compromisso foi reativado (tipo diferente de Cancelado),
-                            // remove a marcação de quem cancelou
-                            canceladoPor: selectTipo.value === 'Cancelado' ? c.canceladoPor : ''
-                        };
-                    }
-                    return c;
-                });
-                nomeEditorAtual = '';
-            } else {
-                // Modo Criação: Dá um push de um novo objeto JSON completo
-                const novoEvento = {
+            const btnSalvar = formCadastro.querySelector('.btn-salvar');
+            if (btnSalvar) btnSalvar.disabled = true;
 
-                    id:String(Date.now()),
-                    title:inputTitulo.value,
-                    start:dataHoraInicio,
-                    criadoPor:usuarioLogado.usuario,
-                    tipo:selectTipo.value,
-                    className:classeCor,
-                    agente:agente,
-                    solicitante:solicitante,
-                    cargoSolicitante:cargoSolicitante,
-                    unidade:unidade,
-                    status:status,
-                    descricao:txtDescricao.value
+            if (modoEdicao && idEventoSelecionado) {
+                // Modo Edição: Atualiza o registro no Supabase
+                const dadosAtualizados = {
+                    title: inputTitulo.value,
+                    start: dataHoraInicio,
+                    tipo: selectTipo.value,
+                    classname: classeCor,
+                    agente: agente,
+                    solicitante: solicitante,
+                    cargo_solicitante: cargoSolicitante,
+                    unidade: unidade,
+                    status: status,
+                    descricao: txtDescricao.value
                 };
-                compromissos.push(novoEvento);
+                if (nomeEditorAtual) dadosAtualizados.editado_por = nomeEditorAtual;
+                // Se o compromisso foi reativado (tipo diferente de Cancelado), limpa quem cancelou
+                if (selectTipo.value !== 'Cancelado') dadosAtualizados.cancelado_por = '';
+
+                const { error } = await supabaseClient
+                    .from('compromissos')
+                    .update(dadosAtualizados)
+                    .eq('id', idEventoSelecionado);
+
+                nomeEditorAtual = '';
+
+                if (error) {
+                    alert('⚠️ Erro ao salvar alterações: ' + error.message);
+                    if (btnSalvar) btnSalvar.disabled = false;
+                    return;
+                }
+            } else {
+                // Modo Criação: Insere um novo registro no Supabase
+                const novoEvento = {
+                    id: String(Date.now()),
+                    title: inputTitulo.value,
+                    start: dataHoraInicio,
+                    criado_por: usuarioLogado.usuario,
+                    tipo: selectTipo.value,
+                    classname: classeCor,
+                    agente: agente,
+                    solicitante: solicitante,
+                    cargo_solicitante: cargoSolicitante,
+                    unidade: unidade,
+                    status: status,
+                    descricao: txtDescricao.value
+                };
+
+                const { error } = await supabaseClient.from('compromissos').insert(novoEvento);
+
+                if (error) {
+                    alert('⚠️ Erro ao criar compromisso: ' + error.message);
+                    if (btnSalvar) btnSalvar.disabled = false;
+                    return;
+                }
             }
 
-            // Força renderização e atualiza indicadores
-            calendar.removeAllEvents();
-            calendar.addEventSource(compromissos);
-            atualizarDashboard();
-            
+            await carregarCompromissos();
+            if (btnSalvar) btnSalvar.disabled = false;
             if (modalCadastro) modalCadastro.style.display = 'none';
         });
     }
 
-    function atualizarDataEvento(event) {
+    async function atualizarDataEvento(event) {
+        // Atualiza local (visual já foi movido pelo FullCalendar) e depois persiste no Supabase
         compromissos = compromissos.map(c => {
             if (c.id === event.id) {
-                return {
-                    ...c,
-                    start: event.startStr,
-                    end: event.endStr || event.startStr
-                };
+                return { ...c, start: event.startStr, end: event.endStr || event.startStr };
             }
             return c;
         });
         atualizarDashboard();
+
+        const { error } = await supabaseClient
+            .from('compromissos')
+            .update({ start: event.startStr, end: event.endStr || event.startStr })
+            .eq('id', event.id);
+
+        if (error) {
+            alert('⚠️ Erro ao salvar o novo horário: ' + error.message);
+            await carregarCompromissos(); // desfaz visualmente, recarregando do banco
+        }
     }
 
     // =========================================================================
@@ -565,47 +609,55 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     });
 
     // 📄 Ação: DUPLICAR (Continua livre - cria cópia exata instantaneamente)
-    document.getElementById('btnDuplicarCompromisso').addEventListener('click', function() {
+    document.getElementById('btnDuplicarCompromisso').addEventListener('click', async function() {
         if (eventoSelecionadoParaMenu) {
             const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
             if (origem) {
                 const copiaClonada = {
                     ...origem,
-                    id: String(Date.now()), // Gera um novo ID único baseado no timestamp
-                    title: origem.title // Mantém o título livre/idêntico
+                    id: String(Date.now()) // Gera um novo ID único baseado no timestamp
                 };
-                compromissos.push(copiaClonada);
-                calendar.removeAllEvents();
-                calendar.addEventSource(compromissos);
-                atualizarDashboard();
+
+                const { error } = await supabaseClient
+                    .from('compromissos')
+                    .insert(compromissoParaLinha(copiaClonada));
+
+                if (error) {
+                    alert('⚠️ Erro ao duplicar: ' + error.message);
+                    return;
+                }
+                await carregarCompromissos();
             }
         }
     });
 
     // ❌ Ação: CANCELAR (Pede nome, muda status/tipo e registra quem cancelou)
-    document.getElementById('btnCancelarCompromisso').addEventListener('click', function() {
+    document.getElementById('btnCancelarCompromisso').addEventListener('click', async function() {
         if (eventoSelecionadoParaMenu) {
             const nomeCancelador = prompt("Quem está cancelando este compromisso?");
             
             if (nomeCancelador && nomeCancelador.trim() !== "") {
-                compromissos = compromissos.map(c => {
-                    if (c.id === eventoSelecionadoParaMenu.id) {
-                        // Remove sufixos antigos que porventura estejam presos ao título
-                        const tituloLimpo = c.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
-                        return { 
-                            ...c, 
-                            tipo: 'Cancelado', 
-                            className: 'evento-cancelado',
-                            title: tituloLimpo,
-                            canceladoPor: nomeCancelador.trim()
-                        };
-                    }
-                    return c;
-                });
-                
-                calendar.removeAllEvents();
-                calendar.addEventSource(compromissos);
-                atualizarDashboard();
+                const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+                if (!origem) return;
+
+                // Remove sufixos antigos que porventura estejam presos ao título
+                const tituloLimpo = origem.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
+
+                const { error } = await supabaseClient
+                    .from('compromissos')
+                    .update({
+                        tipo: 'Cancelado',
+                        classname: 'evento-cancelado',
+                        title: tituloLimpo,
+                        cancelado_por: nomeCancelador.trim()
+                    })
+                    .eq('id', eventoSelecionadoParaMenu.id);
+
+                if (error) {
+                    alert('⚠️ Erro ao cancelar: ' + error.message);
+                    return;
+                }
+                await carregarCompromissos();
             } else if (nomeCancelador !== null) {
                 alert("Operação cancelada: O nome do responsável é obrigatório.");
             }
@@ -618,7 +670,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     const btnCancelarExclusao = document.getElementById('btnCancelarExclusao');
     const btnConfirmarExclusao = document.getElementById('btnConfirmarExclusao');
 
-    // 🗑️ Ação: APAGAR (Abre o modal seguro mascarado)
+    // 🗑️ Ação: APAGAR (Abre o modal seguro mascarado) — só admin vê o botão
     document.getElementById('btnApagar').addEventListener('click', function() {
         if (!isAdmin) return;
         if (eventoSelecionadoParaMenu) {
@@ -630,13 +682,19 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
 
     // Evento de Confirmação da Senha Oculta
     if (btnConfirmarExclusao) {
-        btnConfirmarExclusao.addEventListener('click', function() {
+        btnConfirmarExclusao.addEventListener('click', async function() {
             // A senha continua sendo validada, mas agora não fica legível na tela ao digitar
             if (inputSenhaAdmin && inputSenhaAdmin.value === "262505") {
-                compromissos = compromissos.filter(c => c.id !== eventoSelecionadoParaMenu.id);
-                calendar.removeAllEvents();
-                calendar.addEventSource(compromissos);
-                atualizarDashboard();
+                const { error } = await supabaseClient
+                    .from('compromissos')
+                    .delete()
+                    .eq('id', eventoSelecionadoParaMenu.id);
+
+                if (error) {
+                    alert('⚠️ Erro ao apagar: ' + error.message);
+                    return;
+                }
+                await carregarCompromissos();
                 if (modalSenhaAdmin) modalSenhaAdmin.style.display = 'none';
             } else {
                 alert("🚫 Senha incorreta! O registro não foi removido.");
@@ -776,7 +834,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     }
 
     // =========================================================================
-    // 9. PAINEL DE ADMINISTRAÇÃO (SOMENTE ADMIN)
+    // 9. PAINEL DE ADMINISTRAÇÃO (SOMENTE ADMIN) — USUÁRIOS AGORA NO SUPABASE
     // =========================================================================
     const btnAdmin = document.getElementById("btnAdmin");
     const modalAdmin = document.getElementById("modalAdmin");
@@ -794,8 +852,13 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
 
     if (isAdmin && btnAdmin) btnAdmin.style.display = "inline-block";
 
-    function pegarUsuarios() {
-        return JSON.parse(localStorage.getItem("usuarios")) || [];
+    async function pegarUsuarios() {
+        const { data, error } = await supabaseClient.from('usuarios').select('*').order('usuario');
+        if (error) {
+            alert('⚠️ Erro ao carregar usuários: ' + error.message);
+            return [];
+        }
+        return data || [];
     }
 
     function resetarFormularioUsuario() {
@@ -806,9 +869,9 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         if (btnCancelarEdicaoUsuario) btnCancelarEdicaoUsuario.style.display = "none";
     }
 
-    function renderizarListaUsuarios() {
+    async function renderizarListaUsuarios() {
         if (!listaUsuariosAdmin) return;
-        const lista = pegarUsuarios();
+        const lista = await pegarUsuarios();
         listaUsuariosAdmin.innerHTML = "";
 
         lista.forEach(u => {
@@ -833,7 +896,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                 formUsuarioAdmin.scrollIntoView({ behavior: "smooth", block: "start" });
             });
 
-            div.querySelector(".btn-apagar-usuario").addEventListener("click", function() {
+            div.querySelector(".btn-apagar-usuario").addEventListener("click", async function() {
                 if (usuarioLogado && usuarioLogado.usuario === u.usuario) {
                     alert("🚫 Você não pode apagar o usuário com o qual está logado.");
                     return;
@@ -844,8 +907,11 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                     return;
                 }
                 if (confirm(`Tem certeza que deseja apagar o usuário "${u.usuario}"?`)) {
-                    const novaLista = lista.filter(x => x.usuario !== u.usuario);
-                    localStorage.setItem("usuarios", JSON.stringify(novaLista));
+                    const { error } = await supabaseClient.from('usuarios').delete().eq('usuario', u.usuario);
+                    if (error) {
+                        alert('⚠️ Erro ao apagar usuário: ' + error.message);
+                        return;
+                    }
                     renderizarListaUsuarios();
                 }
             });
@@ -871,57 +937,89 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     }
 
     if (formUsuarioAdmin) {
-        formUsuarioAdmin.addEventListener("submit", function(e) {
+        formUsuarioAdmin.addEventListener("submit", async function(e) {
             e.preventDefault();
 
             const nomeDigitado = txtNovoUsuario.value.trim();
             const senhaDigitada = txtNovaSenha.value.trim();
             const roleEscolhida = selNovoRole.value;
             const emEdicao = usuarioOriginalEdicao.value;
-            let lista = pegarUsuarios();
 
             if (emEdicao) {
                 // Editando um usuário já existente
-                lista = lista.map(u => {
-                    if (u.usuario === emEdicao) {
-                        return { usuario: u.usuario, senha: senhaDigitada, role: roleEscolhida };
-                    }
-                    return u;
-                });
+                const { error } = await supabaseClient
+                    .from('usuarios')
+                    .update({ senha: senhaDigitada, role: roleEscolhida })
+                    .eq('usuario', emEdicao);
+
+                if (error) {
+                    alert('⚠️ Erro ao salvar alterações do usuário: ' + error.message);
+                    return;
+                }
 
                 // Se o usuário editado é o que está logado agora, atualiza a sessão também
                 if (usuarioLogado && usuarioLogado.usuario === emEdicao) {
-                    const atualizado = lista.find(u => u.usuario === emEdicao);
-                    localStorage.setItem("usuarioLogado", JSON.stringify(atualizado));
+                    usuarioLogado.senha = senhaDigitada;
+                    usuarioLogado.role = roleEscolhida;
+                    localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
                 }
             } else {
-                // Criando um usuário novo
-                if (lista.find(u => u.usuario.toLowerCase() === nomeDigitado.toLowerCase())) {
+                // Criando um usuário novo — confere duplicidade (sem diferenciar maiúsc/minúsc)
+                const { data: existente } = await supabaseClient
+                    .from('usuarios')
+                    .select('usuario')
+                    .ilike('usuario', nomeDigitado)
+                    .maybeSingle();
+
+                if (existente) {
                     alert("🚫 Já existe um usuário com esse nome de login.");
                     return;
                 }
-                lista.push({ usuario: nomeDigitado, senha: senhaDigitada, role: roleEscolhida });
+
+                const { error } = await supabaseClient
+                    .from('usuarios')
+                    .insert({ usuario: nomeDigitado, senha: senhaDigitada, role: roleEscolhida });
+
+                if (error) {
+                    alert('⚠️ Erro ao criar usuário: ' + error.message);
+                    return;
+                }
             }
 
-            localStorage.setItem("usuarios", JSON.stringify(lista));
             resetarFormularioUsuario();
             renderizarListaUsuarios();
         });
     }
 
-    document.getElementById("btnLogin").onclick=function(){
-    const usuario=document.getElementById("usuario").value;
-    const senha=document.getElementById("senha").value;
-    const lista=JSON.parse(localStorage.getItem("usuarios"));
-    const login=lista.find(x=>x.usuario==usuario && x.senha==senha);
-    if(login){
-        localStorage.setItem("usuarioLogado",JSON.stringify(login));
-        location.reload();
-    }else{
-        document.getElementById("erroLogin").innerHTML="Usuário ou senha inválidos.";
+    document.getElementById("btnLogin").onclick = async function(){
+        const usuario = document.getElementById("usuario").value;
+        const senha = document.getElementById("senha").value;
+        const erroLoginEl = document.getElementById("erroLogin");
+
+        erroLoginEl.innerHTML = "Entrando...";
+
+        const { data, error } = await supabaseClient
+            .from('usuarios')
+            .select('*')
+            .eq('usuario', usuario)
+            .eq('senha', senha)
+            .maybeSingle();
+
+        if (error) {
+            erroLoginEl.innerHTML = "⚠️ Erro ao conectar com o Supabase: " + error.message;
+            return;
+        }
+
+        if (data) {
+            localStorage.setItem("usuarioLogado", JSON.stringify(data));
+            location.reload();
+        } else {
+            erroLoginEl.innerHTML = "Usuário ou senha inválidos.";
+        }
+    };
+
+    // Executa a primeira carga (só se já estiver logado, evita chamada desnecessária ao Supabase)
+    if (usuarioLogado) {
+        await carregarCompromissos();
     }
-};
-    
-    // Executa a primeira carga limpando caches e construindo o dashboard
-    atualizarDashboard();
 });
