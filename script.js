@@ -594,17 +594,11 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         if (menuContexto) menuContexto.style.display = 'none';
     });
 
-    // ✏️ Ação: EDITAR (Pergunta quem está editando e abre o formulário completo, pré-preenchido)
+    // ✏️ Ação: EDITAR (usa automaticamente quem está logado e abre o formulário completo, pré-preenchido)
     document.getElementById('btnEditarCompromisso').addEventListener('click', function() {
         if (eventoSelecionadoParaMenu) {
-            const nomeEditor = prompt("Quem está editando este compromisso?");
-
-            if (nomeEditor && nomeEditor.trim() !== "") {
-                nomeEditorAtual = nomeEditor.trim();
-                abrirModalCadastro(true, eventoSelecionadoParaMenu);
-            } else if (nomeEditor !== null) {
-                alert("Operação cancelada: o nome de quem está editando é obrigatório.");
-            }
+            nomeEditorAtual = usuarioLogado ? usuarioLogado.usuario : '';
+            abrirModalCadastro(true, eventoSelecionadoParaMenu);
         }
     });
 
@@ -631,87 +625,56 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         }
     });
 
-    // ❌ Ação: CANCELAR (Pede nome, muda status/tipo e registra quem cancelou)
+    // ❌ Ação: CANCELAR (confirma a ação, muda status/tipo e registra automaticamente quem cancelou)
     document.getElementById('btnCancelarCompromisso').addEventListener('click', async function() {
         if (eventoSelecionadoParaMenu) {
-            const nomeCancelador = prompt("Quem está cancelando este compromisso?");
-            
-            if (nomeCancelador && nomeCancelador.trim() !== "") {
-                const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
-                if (!origem) return;
+            const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+            if (!origem) return;
 
-                // Remove sufixos antigos que porventura estejam presos ao título
-                const tituloLimpo = origem.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
+            if (!confirm(`Cancelar o compromisso "${origem.title}"?`)) return;
 
-                const { error } = await supabaseClient
-                    .from('compromissos')
-                    .update({
-                        tipo: 'Cancelado',
-                        classname: 'evento-cancelado',
-                        title: tituloLimpo,
-                        cancelado_por: nomeCancelador.trim()
-                    })
-                    .eq('id', eventoSelecionadoParaMenu.id);
+            // Remove sufixos antigos que porventura estejam presos ao título
+            const tituloLimpo = origem.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
 
-                if (error) {
-                    alert('⚠️ Erro ao cancelar: ' + error.message);
-                    return;
-                }
-                await carregarCompromissos();
-            } else if (nomeCancelador !== null) {
-                alert("Operação cancelada: O nome do responsável é obrigatório.");
+            const { error } = await supabaseClient
+                .from('compromissos')
+                .update({
+                    tipo: 'Cancelado',
+                    classname: 'evento-cancelado',
+                    title: tituloLimpo,
+                    cancelado_por: usuarioLogado ? usuarioLogado.usuario : ''
+                })
+                .eq('id', eventoSelecionadoParaMenu.id);
+
+            if (error) {
+                alert('⚠️ Erro ao cancelar: ' + error.message);
+                return;
             }
+            await carregarCompromissos();
         }
     });
 
-    // Elementos novos do modal de senha seguro
-    const modalSenhaAdmin = document.getElementById('modalSenhaAdmin');
-    const inputSenhaAdmin = document.getElementById('txtSenhaAdmin');
-    const btnCancelarExclusao = document.getElementById('btnCancelarExclusao');
-    const btnConfirmarExclusao = document.getElementById('btnConfirmarExclusao');
-
-    // 🗑️ Ação: APAGAR (Abre o modal seguro mascarado) — só admin vê o botão
-    document.getElementById('btnApagar').addEventListener('click', function() {
+    // 🗑️ Ação: APAGAR (só admin vê o botão; pede uma confirmação simples antes de remover)
+    document.getElementById('btnApagar').addEventListener('click', async function() {
         if (!isAdmin) return;
-        if (eventoSelecionadoParaMenu) {
-            if (inputSenhaAdmin) inputSenhaAdmin.value = ''; // Limpa digitações anteriores
-            if (modalSenhaAdmin) modalSenhaAdmin.style.display = 'flex';
-            if (inputSenhaAdmin) inputSenhaAdmin.focus();
+        if (!eventoSelecionadoParaMenu) return;
+
+        const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+        const nomeEvento = origem ? origem.title : 'este compromisso';
+
+        if (!confirm(`🗑️ Apagar definitivamente "${nomeEvento}"? Essa ação não pode ser desfeita.`)) return;
+
+        const { error } = await supabaseClient
+            .from('compromissos')
+            .delete()
+            .eq('id', eventoSelecionadoParaMenu.id);
+
+        if (error) {
+            alert('⚠️ Erro ao apagar: ' + error.message);
+            return;
         }
+        await carregarCompromissos();
     });
-
-    // Evento de Confirmação da Senha Oculta
-    if (btnConfirmarExclusao) {
-        btnConfirmarExclusao.addEventListener('click', async function() {
-            // A senha continua sendo validada, mas agora não fica legível na tela ao digitar
-            if (inputSenhaAdmin && inputSenhaAdmin.value === "262505") {
-                const { error } = await supabaseClient
-                    .from('compromissos')
-                    .delete()
-                    .eq('id', eventoSelecionadoParaMenu.id);
-
-                if (error) {
-                    alert('⚠️ Erro ao apagar: ' + error.message);
-                    return;
-                }
-                await carregarCompromissos();
-                if (modalSenhaAdmin) modalSenhaAdmin.style.display = 'none';
-            } else {
-                alert("🚫 Senha incorreta! O registro não foi removido.");
-                if (inputSenhaAdmin) {
-                    inputSenhaAdmin.value = '';
-                    inputSenhaAdmin.focus();
-                }
-            }
-        });
-    }
-
-    // Ouvinte para fechar o modal caso desista
-    if (btnCancelarExclusao) {
-        btnCancelarExclusao.addEventListener('click', () => {
-            if (modalSenhaAdmin) modalSenhaAdmin.style.display = 'none';
-        });
-    }
 
     // =========================================================================
     // 8. FILTROS E BUSCA POR DIGITAÇÃO
