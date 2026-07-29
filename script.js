@@ -52,7 +52,9 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             status: row.status || '',
             criadoPor: row.criado_por || '',
             editadoPor: row.editado_por || '',
-            canceladoPor: row.cancelado_por || ''
+            canceladoPor: row.cancelado_por || '',
+            motivoFalta: row.motivo_falta || '',
+            qtdParticipantes: row.qtd_participantes ?? null
         };
     }
 
@@ -72,7 +74,9 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             status: c.status || '',
             criado_por: c.criadoPor || '',
             editado_por: c.editadoPor || '',
-            cancelado_por: c.canceladoPor || ''
+            cancelado_por: c.canceladoPor || '',
+            motivo_falta: c.motivoFalta || '',
+            qtd_participantes: (c.qtdParticipantes === null || c.qtdParticipantes === undefined || c.qtdParticipantes === '') ? null : c.qtdParticipantes
         };
     }
 
@@ -182,12 +186,37 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     const selectTipo = document.getElementById('selTipo') || document.getElementById('tipo');
     const selectStatus = document.getElementById('selStatus');
     const txtDescricao = document.getElementById('txtDescricao') || document.getElementById('descricao');
+    const grupoMotivoFalta = document.getElementById('grupoMotivoFalta');
+    const txtMotivoFalta = document.getElementById('txtMotivoFalta');
+    const grupoParticipantes = document.getElementById('grupoParticipantes');
+    const txtQtdParticipantes = document.getElementById('txtQtdParticipantes');
+
+    // Mostra o campo de participantes só quando o Tipo for Treinamento
+    function atualizarVisibilidadeParticipantes() {
+        if (!grupoParticipantes || !selectTipo) return;
+        grupoParticipantes.style.display = (selectTipo.value === 'Treinamento') ? 'flex' : 'none';
+    }
+    if (selectTipo) {
+        selectTipo.addEventListener('change', atualizarVisibilidadeParticipantes);
+    }
+
+    // Mostra o campo de motivo só quando o status for "Faltou"
+    function atualizarVisibilidadeMotivoFalta() {
+        if (!grupoMotivoFalta || !selectStatus) return;
+        const faltou = selectStatus.value === 'Não Compareceu';
+        grupoMotivoFalta.style.display = faltou ? 'flex' : 'none';
+        if (txtMotivoFalta) txtMotivoFalta.required = faltou;
+    }
+    if (selectStatus) {
+        selectStatus.addEventListener('change', atualizarVisibilidadeMotivoFalta);
+    }
 
     // =========================================================================
     // 3. CONFIGURAÇÃO PRINCIPAL DO FULLCALENDAR
     // =========================================================================
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
+        height: 'auto',
         locale: 'pt-br',
         weekends: false, // Oculta sábados e domingos
         headerToolbar: {
@@ -204,6 +233,13 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         events: [],
         editable: !somenteVisualizacao,
         selectable: !somenteVisualizacao,
+
+        // Evita empilhar dezenas de compromissos no quadradinho do dia:
+        // mostra só alguns e um link "+N mais" que abre a lista completa daquele dia
+        dayMaxEvents: 3,
+        moreLinkText: function(num) { return `+${num} mais`; },
+        eventOrder: 'start',
+        eventOrderStrict: true,
 
         // Clique em um dia vazio -> Abre modal de Cadastro
         select: function(info) {
@@ -347,6 +383,8 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             if (selectTipo) selectTipo.value = event.extendedProps.tipo || 'Treinamento';
             if (selectStatus) selectStatus.value = event.extendedProps.status || 'Aguardando Confirmação';
             if (txtDescricao) txtDescricao.value = event.extendedProps.descricao || '';
+            if (txtMotivoFalta) txtMotivoFalta.value = event.extendedProps.motivoFalta || '';
+            if (txtQtdParticipantes) txtQtdParticipantes.value = event.extendedProps.qtdParticipantes ?? '';
         } else {
             idEventoSelecionado = null;
             if (formCadastro) formCadastro.reset();
@@ -354,8 +392,12 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             if (inputHoraInicio) inputHoraInicio.value = '';
             if (selectStatus) selectStatus.value = 'Aguardando Confirmação';
             if (inputAgente) inputAgente.value = usuarioLogado ? usuarioLogado.usuario : '';
+            if (txtMotivoFalta) txtMotivoFalta.value = '';
+            if (txtQtdParticipantes) txtQtdParticipantes.value = '';
         }
 
+        atualizarVisibilidadeMotivoFalta();
+        atualizarVisibilidadeParticipantes();
         if (modalCadastro) modalCadastro.style.display = 'flex';
     }
 
@@ -366,17 +408,36 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             const dataFormatada = inputData.value;
             const dataHoraInicio = `${dataFormatada}T${inputHoraInicio.value}:00`;
 
-            let classeCor = 'evento-padrao';
-            if (selectTipo.value === 'Treinamento') classeCor = 'evento-treinamento';
-            else if (selectTipo.value === 'Visita') classeCor = 'evento-visita';
-            else if (selectTipo.value === 'Demanda') classeCor = 'evento-demanda';
-            else if (selectTipo.value === 'Cancelado' || selectTipo.value === 'Cancelamento') classeCor = 'evento-cancelado';
-
             const agente = inputAgente ? inputAgente.value : '';
             const solicitante = inputSolicitante ? inputSolicitante.value : '';
             const cargoSolicitante = inputCargoSolicitante ? inputCargoSolicitante.value : '';
             const unidade = selectUnidade ? selectUnidade.value : '';
             const status = selectStatus ? selectStatus.value : 'Aguardando Confirmação';
+
+            let classeCor = 'evento-padrao';
+            if (selectTipo.value === 'Cancelado' || selectTipo.value === 'Cancelamento') {
+                classeCor = 'evento-cancelado';
+            }
+            else if (status === 'Não Compareceu') {
+                classeCor = 'evento-nao-compareceu';
+            }
+            else if (status === 'Realizado') {
+                classeCor = 'evento-concluido';
+            }
+            else if (selectTipo.value === 'Treinamento') {
+                classeCor = 'evento-treinamento';
+            }
+            else if (selectTipo.value === 'Visita') {
+                classeCor = 'evento-visita';
+            }
+            else if (selectTipo.value === 'Demanda') {
+                classeCor = 'evento-demanda';
+            }
+
+            const motivoFalta = (status === 'Não Compareceu' && txtMotivoFalta) ? txtMotivoFalta.value : '';
+            const qtdParticipantes = (selectTipo.value === 'Treinamento' && txtQtdParticipantes && txtQtdParticipantes.value !== '')
+                ? parseInt(txtQtdParticipantes.value, 10)
+                : null;
 
             const btnSalvar = formCadastro.querySelector('.btn-salvar');
             if (btnSalvar) btnSalvar.disabled = true;
@@ -393,7 +454,9 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                     cargo_solicitante: cargoSolicitante,
                     unidade: unidade,
                     status: status,
-                    descricao: txtDescricao.value
+                    descricao: txtDescricao.value,
+                    motivo_falta: motivoFalta,
+                    qtd_participantes: qtdParticipantes
                 };
                 if (nomeEditorAtual) dadosAtualizados.editado_por = nomeEditorAtual;
                 // Se o compromisso foi reativado (tipo diferente de Cancelado), limpa quem cancelou
@@ -425,7 +488,9 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                     cargo_solicitante: cargoSolicitante,
                     unidade: unidade,
                     status: status,
-                    descricao: txtDescricao.value
+                    descricao: txtDescricao.value,
+                    motivo_falta: motivoFalta,
+                    qtd_participantes: qtdParticipantes
                 };
 
                 const { error } = await supabaseClient.from('compromissos').insert(novoEvento);
@@ -479,6 +544,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     const classesStatus = {
         'Aguardando Confirmação': 'badge-aguardando',
         'Confirmado': 'badge-confirmado',
+        'Realizado': 'badge-realizado',
         'Remarcado': 'badge-remarcado',
         'Não Compareceu': 'badge-nao-compareceu'
     };
@@ -499,6 +565,8 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             const statusExibido = tipo === 'Cancelado' ? 'Cancelado' : status;
             const classeBadge = tipo === 'Cancelado' ? 'badge-cancelado' : (classesStatus[status] || 'badge-aguardando');
             const canceladoPor = event.extendedProps.canceladoPor || '';
+            const motivoFalta = event.extendedProps.motivoFalta || '';
+            const qtdParticipantes = event.extendedProps.qtdParticipantes;
 
             const dataObj = event.start;
             const dataFormatada = dataObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -530,6 +598,11 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                         <span class="detalhe-label">🏥 Unidade</span>
                         <span class="detalhe-valor">${unidade}</span>
                     </div>
+                    ${tipo === 'Treinamento' && qtdParticipantes !== null && qtdParticipantes !== undefined ? `
+                    <div class="detalhe-item">
+                        <span class="detalhe-label">👥 Participantes</span>
+                        <span class="detalhe-valor">${qtdParticipantes}</span>
+                    </div>` : ''}
                 </div>
 
                 <div class="detalhe-secao">
@@ -548,6 +621,12 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                         <span class="detalhe-valor">${canceladoPor}</span>
                     </div>` : ''}
                 </div>
+
+                ${status === 'Não Compareceu' && motivoFalta ? `
+                <div class="detalhe-secao">
+                    <div class="detalhe-secao-titulo">🔴 Motivo da Falta</div>
+                    <p class="detalhe-obs detalhe-obs-falta">${motivoFalta}</p>
+                </div>` : ''}
 
                 <div class="detalhe-secao">
                     <div class="detalhe-secao-titulo">📝 Notas de Campo</div>
@@ -623,6 +702,32 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                 await carregarCompromissos();
             }
         }
+    });
+
+    // ✅ Ação: CONCLUIR (marca rapidamente o status como Realizado, sem abrir o formulário inteiro)
+    document.getElementById('btnConcluirCompromisso').addEventListener('click', async function() {
+        if (!eventoSelecionadoParaMenu) return;
+
+        const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+        if (!origem) return;
+
+        if (origem.tipo === 'Cancelado') {
+            alert("🚫 Não é possível concluir um compromisso já cancelado.");
+            return;
+        }
+
+        if (!confirm(`Marcar "${origem.title}" como Realizado?`)) return;
+
+        const { error } = await supabaseClient
+            .from('compromissos')
+            .update({ status: 'Realizado', classname: 'evento-concluido' })
+            .eq('id', eventoSelecionadoParaMenu.id);
+
+        if (error) {
+            alert('⚠️ Erro ao concluir: ' + error.message);
+            return;
+        }
+        await carregarCompromissos();
     });
 
     // ❌ Ação: CANCELAR (confirma a ação, muda status/tipo e registra automaticamente quem cancelou)
@@ -730,6 +835,10 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             document.getElementById('repDemandas').innerText = document.getElementById('cardDemandas').innerText;
             document.getElementById('repCancelados').innerText = document.getElementById('cardCancelados').innerText;
 
+            const totalParticipantes = compromissos.reduce((soma, c) => soma + (Number(c.qtdParticipantes) || 0), 0);
+            const repParticipantesEl = document.getElementById('repParticipantes');
+            if (repParticipantesEl) repParticipantesEl.innerText = totalParticipantes;
+
             // Monta a lista textual limpa para impressão
             if (listaAtividadesRelatorio) {
                 listaAtividadesRelatorio.innerHTML = '';
@@ -739,10 +848,13 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                 } else {
                     compromissos.forEach(comp => {
                         const dataComp = new Date(comp.start).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+                        const infoParticipantes = (comp.tipo === 'Treinamento' && comp.qtdParticipantes !== null && comp.qtdParticipantes !== undefined)
+                            ? ` | 👥 ${comp.qtdParticipantes} participante(s)`
+                            : '';
                         const itemHtml = `
                             <div style="padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px;">
                                 <strong style="color:#1e293b;">${comp.title}</strong><br>
-                                <span style="color:#64748b;">📅 ${dataComp} | Tipo: ${comp.tipo}</span>
+                                <span style="color:#64748b;">📅 ${dataComp} | Tipo: ${comp.tipo}${infoParticipantes}</span>
                             </div>
                         `;
                         listaAtividadesRelatorio.innerHTML += itemHtml;
