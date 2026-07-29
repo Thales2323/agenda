@@ -45,6 +45,15 @@
                 <button class="filtro">Visita</button>
                 <button class="filtro">Demanda</button>
                 <button class="filtro">Cancelamento</button>
+
+                <div class="legenda-cores">
+                    <span><i class="bolinha-legenda" style="background:#2563eb;"></i>Treinamento</span>
+                    <span><i class="bolinha-legenda" style="background:#eab308;"></i>Visita</span>
+                    <span><i class="bolinha-legenda" style="background:#8b5cf6;"></i>Demanda</span>
+                    <span><i class="bolinha-legenda" style="background:#16a34a;"></i>Concluído</span>
+                    <span><i class="bolinha-legenda" style="background:#ef4444;"></i>Cancelado</span>
+                    <span><i class="bolinha-legenda" style="background:#fd8f00;"></i>Não Compareceu</span>
+                </div>
             </div>
             <!-- Container do FullCalendar -->
             <div id="calendar"></div>
@@ -53,25 +62,40 @@
         <!-- CARDS DE RESUMO (5 COLUNAS) -->
         <section class="cards">
             <div class="card treinamento">
-                <h2>🎓 Treinamentos</h2>
-                <span id="cardTreinamentos">0</span>
+                <div class="card-topo">
+                    <span class="card-icone">🎓</span>
+                    <h2>Treinamentos</h2>
+                </div>
+                <span class="card-numero" id="cardTreinamentos">0</span>
             </div>
             <div class="card visita">
-                <h2>🚗 Visitas</h2>
-                <span id="cardVisitas">0</span>
+                <div class="card-topo">
+                    <span class="card-icone">🚗</span>
+                    <h2>Visitas</h2>
+                </div>
+                <span class="card-numero" id="cardVisitas">0</span>
             </div>
             <div class="card demanda">
-                <h2>📋 Demandas</h2>
-                <span id="cardDemandas">0</span>
+                <div class="card-topo">
+                    <span class="card-icone">📋</span>
+                    <h2>Demandas</h2>
+                </div>
+                <span class="card-numero" id="cardDemandas">0</span>
             </div>
             <div class="card cancelar">
-                <h2>❌ Cancelados</h2>
-                <span id="cardCancelados">0</span>
+                <div class="card-topo">
+                    <span class="card-icone">❌</span>
+                    <h2>Cancelados</h2>
+                </div>
+                <span class="card-numero" id="cardCancelados">0</span>
             </div>
             <!-- Card de Relatório Clicável -->
             <div id="btnRelatorio" class="card relatorio-card" style="cursor: pointer;">
-                <h2>📊 Relatório</h2>
-                <span>Gerar Mensal</span>
+                <div class="card-topo">
+                    <span class="card-icone">📊</span>
+                    <h2>Relatório</h2>
+                </div>
+                <span class="card-numero card-numero-texto">Gerar Mensal</span>
             </div>
         </section>
 
@@ -115,11 +139,22 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="selUnidade">Unidade de Saúde</label>
-                    <select id="selUnidade" required>
-                        <!-- Preenchido dinamicamente pelo script.js (objeto "municipios") -->
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="selUnidade">Unidade de Saúde</label>
+                        <select id="selUnidade" required>
+                            <!-- Preenchido dinamicamente pelo script.js (objeto "municipios") -->
+                        </select>
+                    </div>
+                    <div class="form-group form-group-tipo">
+                        <label for="selTipo">Tipo</label>
+                        <select id="selTipo" required>
+                            <option value="Treinamento">🎓 Treinamento</option>
+                            <option value="Visita">🚗 Visita</option>
+                            <option value="Demanda">📋 Demanda</option>
+                            <option value="Cancelado" hidden>❌ Cancelado</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -131,31 +166,31 @@
                         <label for="txtHoraInicio">Hora</label>
                         <input type="time" id="txtHoraInicio" required>
                     </div>
+                    <div class="form-group form-group-status">
+                        <label for="selStatus">Status</label>
+                        <select id="selStatus" required>
+                            <option value="Aguardando Confirmação">🟡 Aguardando</option>
+                            <option value="Confirmado">🟢 Confirmado</option>
+                            <option value="Realizado">✅ Realizado</option>
+                            <option value="Remarcado">🔵 Remarcado</option>
+                            <option value="Não Compareceu">🔴 Faltou</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="selTipo">Tipo</label>
-                    <select id="selTipo" required>
-                        <option value="Treinamento">🎓 Treinamento</option>
-                        <option value="Visita">🚗 Visita</option>
-                        <option value="Demanda">📋 Demanda</option>
-                        <option value="Cancelado" hidden>❌ Cancelado</option>
-                    </select>
+                <div class="form-group" id="grupoParticipantes" style="display:none;">
+                    <label for="txtQtdParticipantes">👥 Quantos participantes compareceram?</label>
+                    <input type="number" id="txtQtdParticipantes" min="0" placeholder="Ex: 12">
                 </div>
 
-                <div class="form-group">
-                    <label for="selStatus">Status</label>
-                    <select id="selStatus" required>
-                        <option value="Aguardando Confirmação">🟡 Aguardando Confirmação</option>
-                        <option value="Confirmado">🟢 Confirmado</option>
-                        <option value="Remarcado">🔵 Remarcado</option>
-                        <option value="Não Compareceu">🔴 Não Compareceu</option>
-                    </select>
+                <div class="form-group" id="grupoMotivoFalta" style="display:none;">
+                    <label for="txtMotivoFalta">🔴 Motivo da Falta</label>
+                    <textarea id="txtMotivoFalta" rows="2" placeholder="Explique por que a pessoa não compareceu..."></textarea>
                 </div>
 
                 <div class="form-group">
                     <label for="txtDescricao">Descrição</label>
-                    <textarea id="txtDescricao" rows="3" required placeholder="Observações adicionais..."></textarea>
+                    <textarea id="txtDescricao" rows="2" required placeholder="Observações adicionais..."></textarea>
                 </div>
 
                 <div class="form-actions">
@@ -181,6 +216,7 @@
     <div class="menu-evento" style="display: none; position: fixed; z-index: 1100;">
         <button id="btnEditarCompromisso">✏️ Editar</button>
         <button id="btnDuplicarCompromisso">📄 Duplicar</button>
+        <button id="btnConcluirCompromisso" style="color: #059669;">✅ Concluir</button>
         <button id="btnCancelarCompromisso" style="color: #f59e0b;">❌ Cancelar</button>
         <hr id="divisorApagar" style="border: 0; border-top: 1px solid #e2e8f0; margin: 0;">
         <button id="btnApagar" style="color: #ef4444;">🗑️ Apagar</button>
@@ -203,11 +239,12 @@
                 <h2 style="margin-bottom: 5px; color: #1e3a8a;">📊 Relatório Operacional Mensal</h2>
                 <p id="dataRelatorio" style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Gerado em: --/--/----</p>
                 
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px;">
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px;">
                     <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🎓 Treinamentos</span><strong id="repTreinamentos" style="display:block; font-size: 18px; color: #2563eb;">0</strong></div>
                     <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🚗 Visitas</span><strong id="repVisitas" style="display:block; font-size: 18px; color: #f59e0b;">0</strong></div>
                     <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">📋 Demandas</span><strong id="repDemandas" style="display:block; font-size: 18px; color: #8b5cf6;">0</strong></div>
                     <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">❌ Cancelados</span><strong id="repCancelados" style="display:block; font-size: 18px; color: #ef4444;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">👥 Participantes</span><strong id="repParticipantes" style="display:block; font-size: 18px; color: #059669;">0</strong></div>
                 </div>
 
                 <h3 style="font-size: 14px; color: #334155; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">Lista de Atividades do Mês</h3>
