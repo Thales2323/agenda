@@ -10,6 +10,12 @@
 </head>
 <body>
 
+    <!-- TELA DE CARREGAMENTO INICIAL -->
+    <div id="telaCarregando">
+        <div class="spinner"></div>
+        <p>Carregando agenda...</p>
+    </div>
+
         <div id="loginTela">
         <div class="login-box">
             <h2>Agenda Flow</h2>
@@ -29,6 +35,7 @@
         <header class="topo">
             <h1>Agenda da Semana</h1>
             <div class="topo-acoes">
+                <button id="btnTema" title="Alternar tema claro/escuro">🌙</button>
                 <button id="btnAdmin" title="Administração" style="display:none;">⚙️ Administração</button>
                 <button id="btnLogout" title="Sair">🚪 Sair</button>
             </div>
@@ -48,11 +55,10 @@
 
                 <div class="legenda-cores">
                     <span><i class="bolinha-legenda" style="background:#2563eb;"></i>Treinamento</span>
-                    <span><i class="bolinha-legenda" style="background:#eab308;"></i>Visita</span>
+                    <span><i class="bolinha-legenda" style="background:#f59e0b;"></i>Visita / Não Compareceu</span>
                     <span><i class="bolinha-legenda" style="background:#8b5cf6;"></i>Demanda</span>
-                    <span><i class="bolinha-legenda" style="background:#16a34a;"></i>Concluído</span>
+                    <span><i class="bolinha-legenda" style="background:#22c55e;"></i>Concluído</span>
                     <span><i class="bolinha-legenda" style="background:#ef4444;"></i>Cancelado</span>
-                    <span><i class="bolinha-legenda" style="background:#fd8f00;"></i>Não Compareceu</span>
                 </div>
             </div>
             <!-- Container do FullCalendar -->
@@ -275,7 +281,8 @@
                     </div>
                     <div class="form-group">
                         <label for="txtNovaSenha">Senha</label>
-                        <input type="text" id="txtNovaSenha" required placeholder="Senha de acesso">
+                        <input type="password" id="txtNovaSenha" required autocomplete="new-password" placeholder="Senha de acesso">
+                        <small id="dicaSenhaAdmin" style="color:#94a3b8; font-size:11px;"></small>
                     </div>
                 </div>
                 <div class="form-group">
@@ -296,6 +303,8 @@
             <div id="listaUsuariosAdmin" style="max-height: 260px; overflow-y: auto;"></div>
         </div>
     </div>
+    <!-- CONTAINER DE NOTIFICAÇÕES (TOASTS) -->
+    <div id="toastContainer" class="toast-container"></div>
 
 </body>
 </html>
