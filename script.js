@@ -64,6 +64,41 @@ function mostrarToast(mensagem, tipo = 'erro') {
     setTimeout(remover, 6000);
 }
 
+// Toast com um botão de ação extra (ex: "Desfazer"), some sozinho em 6s
+// se ninguém clicar — depois disso, a ação não pode mais ser desfeita.
+function mostrarToastAcao(mensagem, textoAcao, aoClicarAcao) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-aviso';
+    toast.innerHTML = `
+        <span class="toast-icone">🗑️</span>
+        <span>${mensagem}</span>
+        <button class="toast-acao">${textoAcao}</button>
+        <button class="toast-fechar" aria-label="Fechar">&times;</button>
+    `;
+
+    function remover() {
+        toast.classList.add('toast-saindo');
+        setTimeout(() => toast.remove(), 200);
+    }
+
+    const timeoutSumir = setTimeout(remover, 6000);
+
+    toast.querySelector('.toast-acao').addEventListener('click', function() {
+        clearTimeout(timeoutSumir);
+        remover();
+        aoClicarAcao();
+    });
+    toast.querySelector('.toast-fechar').addEventListener('click', function() {
+        clearTimeout(timeoutSumir);
+        remover();
+    });
+
+    container.appendChild(toast);
+}
+
 // Garante que apertar Enter salva o formulário (dispara o "submit"),
 // exceto dentro de <textarea>, onde o Enter deve continuar pulando linha.
 function habilitarEnterParaSalvar(form) {
@@ -95,6 +130,44 @@ function habilitarEnterParaSalvar(form) {
         telaLogin.style.display="flex";
         sistema.style.display="none";
 
+    }
+
+    // Esconde a tela de carregamento inicial assim que já sabemos pra onde ir
+    const telaCarregandoEl = document.getElementById('telaCarregando');
+    if (telaCarregandoEl) {
+        telaCarregandoEl.classList.add('escondida');
+        setTimeout(() => telaCarregandoEl.remove(), 300);
+    }
+
+    // =========================================================================
+    // MODO ESCURO (lembrado no navegador, não é dado do sistema)
+    // =========================================================================
+    const btnTema = document.getElementById('btnTema');
+    function aplicarTema(tema) {
+        document.documentElement.setAttribute('data-tema', tema);
+        if (btnTema) btnTema.innerText = tema === 'escuro' ? '☀️' : '🌙';
+    }
+    aplicarTema(localStorage.getItem('temaAgenda') || 'claro');
+    if (btnTema) {
+        btnTema.addEventListener('click', function() {
+            const temaAtual = document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro';
+            localStorage.setItem('temaAgenda', temaAtual);
+            aplicarTema(temaAtual);
+        });
+    }
+
+    // Gera uma cor consistente a partir do nome, pra usar em avatares de iniciais
+    function corAPartirDoNome(nome) {
+        const paleta = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
+        let soma = 0;
+        for (let i = 0; i < (nome || '').length; i++) soma += nome.charCodeAt(i);
+        return paleta[soma % paleta.length];
+    }
+
+    function avatarIniciais(nome) {
+        if (!nome) return '';
+        const iniciais = nome.trim().slice(0, 2).toUpperCase();
+        return `<span class="avatar-iniciais" style="background:${corAPartirDoNome(nome)};">${iniciais}</span>`;
     }
 
     // =========================================================================
@@ -721,16 +794,21 @@ function habilitarEnterParaSalvar(form) {
                     <div class="detalhe-secao-titulo">👤 Responsáveis</div>
                     <div class="detalhe-item-linha">
                         <span class="detalhe-label">Agente (Vivver)</span>
-                        <span class="detalhe-valor">${agente}</span>
+                        <span class="detalhe-valor linha-com-avatar">${avatarIniciais(agente)}${agente}</span>
                     </div>
                     <div class="detalhe-item-linha">
                         <span class="detalhe-label">Solicitado por</span>
                         <span class="detalhe-valor">${solicitante}${cargoSolicitante ? ' <span class="detalhe-cargo">(' + cargoSolicitante + ')</span>' : ''}</span>
                     </div>
+                    ${criadoPor ? `
+                    <div class="detalhe-item-linha">
+                        <span class="detalhe-label">Criado por</span>
+                        <span class="detalhe-valor linha-com-avatar">${avatarIniciais(criadoPor)}${criadoPor}</span>
+                    </div>` : ''}
                     ${tipo === 'Cancelado' && canceladoPor ? `
                     <div class="detalhe-item-linha">
                         <span class="detalhe-label">❌ Cancelado por</span>
-                        <span class="detalhe-valor">${canceladoPor}</span>
+                        <span class="detalhe-valor linha-com-avatar">${avatarIniciais(canceladoPor)}${canceladoPor}</span>
                     </div>` : ''}
                 </div>
 
@@ -876,7 +954,7 @@ function habilitarEnterParaSalvar(form) {
         const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
         const nomeEvento = origem ? origem.title : 'este compromisso';
 
-        if (!confirm(`🗑️ Apagar definitivamente "${nomeEvento}"? Essa ação não pode ser desfeita.`)) return;
+        if (!confirm(`🗑️ Apagar "${nomeEvento}"? Você terá alguns segundos para desfazer logo em seguida.`)) return;
 
         const { error } = await supabaseClient
             .from('compromissos')
@@ -888,6 +966,21 @@ function habilitarEnterParaSalvar(form) {
             return;
         }
         await carregarCompromissos();
+
+        if (origem) {
+            mostrarToastAcao(`"${nomeEvento}" foi apagado.`, 'Desfazer', async function() {
+                const { error: erroDesfazer } = await supabaseClient
+                    .from('compromissos')
+                    .insert([compromissoParaLinha(origem)]);
+
+                if (erroDesfazer) {
+                    mostrarToast('Não foi possível desfazer: ' + erroDesfazer.message, 'erro');
+                    return;
+                }
+                await carregarCompromissos();
+                mostrarToast('Compromisso restaurado.', 'sucesso');
+            });
+        }
     });
 
     // =========================================================================
@@ -1228,16 +1321,46 @@ function habilitarEnterParaSalvar(form) {
 
     document.getElementById("btnLogin").onclick = tentarLogin;
 
-    // Permite logar apertando Enter em qualquer um dos dois campos
-    ["usuario", "senha"].forEach(id => {
-        const campo = document.getElementById(id);
-        if (campo) {
-            campo.addEventListener("keydown", function(e) {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-                    tentarLogin();
-                }
-            });
+    // Enter no campo "usuário" pula o foco pro campo "senha" (não tenta logar ainda,
+    // pois a senha estaria vazia). Enter no campo "senha" loga direto.
+    const campoUsuario = document.getElementById("usuario");
+    const campoSenha = document.getElementById("senha");
+
+    if (campoUsuario && campoSenha) {
+        campoUsuario.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                campoSenha.focus();
+            }
+        });
+
+        campoSenha.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                tentarLogin();
+            }
+        });
+    }
+
+    // =========================================================================
+    // ATALHOS DE TECLADO: "N" abre novo compromisso, "Esc" fecha o que estiver aberto
+    // =========================================================================
+    document.addEventListener('keydown', function(e) {
+        const dentroDeCampo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
+
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal').forEach(m => { if (m.style.display !== 'none') m.style.display = 'none'; });
+            if (menuContexto) menuContexto.style.display = 'none';
+            return;
+        }
+
+        if ((e.key === 'n' || e.key === 'N') && !dentroDeCampo && usuarioLogado && !somenteVisualizacao) {
+            const algumModalAberto = Array.from(document.querySelectorAll('.modal')).some(m => m.style.display === 'flex');
+            if (!algumModalAberto) {
+                e.preventDefault();
+                dataSelecionadaClique = new Date().toISOString().split('T')[0];
+                abrirModalCadastro(false);
+            }
         }
     });
 
