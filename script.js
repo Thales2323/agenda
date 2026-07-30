@@ -15,8 +15,72 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // agora vivem no Supabase, compartilhados entre todo mundo.
 let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
 
+// Mesmo com sessão salva no navegador, sempre revalida no Supabase
+// (garante que o usuário ainda existe e pega o "role" mais atual —
+// se a senha/usuário foi apagado ou alterado no banco, derruba a sessão local).
+if (usuarioLogado) {
+    const { data: usuarioAtual, error: erroRevalidacao } = await supabaseClient
+        .from('usuarios')
+        .select('usuario, role')
+        .eq('usuario', usuarioLogado.usuario)
+        .maybeSingle();
+
+    if (erroRevalidacao || !usuarioAtual) {
+        localStorage.removeItem("usuarioLogado");
+        usuarioLogado = null;
+    } else {
+        usuarioLogado = usuarioAtual;
+        localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
+    }
+}
+
 const somenteVisualizacao = !!(usuarioLogado && usuarioLogado.role === "visualizador");
 const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
+
+// =========================================================================
+// SISTEMA DE NOTIFICAÇÕES (TOASTS) — usado no lugar dos alert() de erro
+// =========================================================================
+const iconesToast = { erro: '⚠️', sucesso: '✅', aviso: '🚫' };
+
+function mostrarToast(mensagem, tipo = 'erro') {
+    const container = document.getElementById('toastContainer');
+    if (!container) { alert(mensagem); return; } // rede de segurança, caso o container não exista
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${tipo}`;
+    toast.innerHTML = `
+        <span class="toast-icone">${iconesToast[tipo] || 'ℹ️'}</span>
+        <span>${mensagem}</span>
+        <button class="toast-fechar" aria-label="Fechar">&times;</button>
+    `;
+
+    function remover() {
+        toast.classList.add('toast-saindo');
+        setTimeout(() => toast.remove(), 200);
+    }
+
+    toast.querySelector('.toast-fechar').addEventListener('click', remover);
+    container.appendChild(toast);
+    setTimeout(remover, 6000);
+}
+
+// Garante que apertar Enter salva o formulário (dispara o "submit"),
+// exceto dentro de <textarea>, onde o Enter deve continuar pulando linha.
+function habilitarEnterParaSalvar(form) {
+    if (!form) return;
+    form.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter') return;
+        if (e.target.tagName === 'TEXTAREA') return; // deixa quebrar linha normalmente
+        if (e.target.tagName === 'BUTTON') return; // já ativa o próprio botão
+
+        e.preventDefault();
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+        } else {
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+        }
+    });
+}
 
     const telaLogin = document.getElementById("loginTela");
     const sistema = document.getElementById("sistema");
@@ -36,6 +100,22 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     // =========================================================================
     // 0. CONVERSÕES ENTRE O FORMATO DO BANCO (SUPABASE) E O FORMATO DO APP
     // =========================================================================
+
+    // A cor do compromisso combina Tipo + Status:
+    // - Cancelado sempre vence (vermelho), não importa o status
+    // - "Não Compareceu" e "Realizado" (Concluir) sobrepõem a cor do Tipo,
+    //   funcionando como um alerta/confirmação visual rápido
+    // - Fora esses casos, a cor normal é a do Tipo
+    function classePorCompromisso(tipo, status) {
+        if (tipo === 'Cancelado' || tipo === 'Cancelamento') return 'evento-cancelado';
+        if (status === 'Não Compareceu') return 'evento-nao-compareceu';
+        if (status === 'Realizado') return 'evento-concluido';
+        if (tipo === 'Treinamento') return 'evento-treinamento';
+        if (tipo === 'Visita') return 'evento-visita';
+        if (tipo === 'Demanda') return 'evento-demanda';
+        return 'evento-padrao';
+    }
+
     function linhaParaCompromisso(row) {
         return {
             id: row.id,
@@ -43,7 +123,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             start: row.start,
             end: row.end || undefined,
             tipo: row.tipo,
-            className: row.classname || 'evento-padrao',
+            className: classePorCompromisso(row.tipo, row.status),
             descricao: row.descricao || '',
             agente: row.agente || '',
             solicitante: row.solicitante || '',
@@ -65,7 +145,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             start: c.start,
             end: c.end || null,
             tipo: c.tipo,
-            classname: c.className || 'evento-padrao',
+            classname: classePorCompromisso(c.tipo, c.status),
             descricao: c.descricao || '',
             agente: c.agente || '',
             solicitante: c.solicitante || '',
@@ -115,6 +195,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     
     // Formulário de Cadastro/Edição
     const formCadastro = document.getElementById('formCadastroEvento') || document.querySelector('#modalCadastro form');
+    habilitarEnterParaSalvar(formCadastro);
     const inputTitulo = document.getElementById('txtTitulo') || document.getElementById('titulo');
     const inputAgente = document.getElementById('txtAgente');
     const inputSolicitante = document.getElementById('txtSolicitante');
@@ -266,6 +347,19 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             hour: '2-digit',
             minute: '2-digit',
             meridiem: false
+        },
+
+        // Grava o ID real do compromisso no elemento visual, para o menu de
+        // contexto (botão direito) conseguir identificar o evento certo mesmo
+        // quando dois compromissos têm o mesmo título (ex: após "Duplicar")
+        eventDidMount: function(info) {
+            info.el.setAttribute('data-event-id', info.event.id);
+        },
+
+        // Recalcula os cards e o resumo sempre que o usuário navega
+        // (mês anterior/próximo, "Hoje", ou troca de visão Mês/Semana/Dia)
+        datesSet: function() {
+            atualizarDashboard();
         }
     });
 
@@ -281,7 +375,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             .order('start', { ascending: true });
 
         if (error) {
-            alert('⚠️ Erro ao carregar compromissos do Supabase: ' + error.message);
+            mostrarToast('Erro ao carregar compromissos: ' + error.message, 'erro');
             return;
         }
 
@@ -294,25 +388,61 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     // =========================================================================
     // 4. SISTEMA DE DASHBOARD, INTEGRAÇÃO DE CARDS E LISTAS
     // =========================================================================
+
+    // Devolve só os compromissos do mês que está sendo exibido no calendário
+    // (usado tanto pelos cards do dashboard quanto pelo Relatório Mensal)
+    function compromissosDoMesExibido() {
+        const dataFoco = calendar.getDate();
+        const anoFoco = dataFoco.getFullYear();
+        const mesFoco = dataFoco.getMonth();
+
+        return compromissos.filter(c => {
+            const d = new Date(c.start);
+            return d.getFullYear() === anoFoco && d.getMonth() === mesFoco;
+        });
+    }
+
+    function nomeDoMesExibido() {
+        return calendar.getDate().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    }
+
     function atualizarDashboard() {
         let qtdTreinamentos = 0, qtdVisitas = 0, qtdDemandas = 0, qtdCancelados = 0;
         const listaProximosEl = document.getElementById('listaProximos');
         const conteudoResumoEl = document.getElementById('conteudoResumo');
-        
-        if (listaProximosEl) listaProximosEl.innerHTML = '';
 
-        compromissos.forEach(comp => {
-            // Contagem dos Cards baseados no tipo
+        // Cards: só contam o que está dentro do mês exibido no calendário
+        compromissosDoMesExibido().forEach(comp => {
             if (comp.tipo === 'Treinamento') qtdTreinamentos++;
             else if (comp.tipo === 'Visita') qtdVisitas++;
             else if (comp.tipo === 'Demanda') qtdDemandas++;
             else if (comp.tipo === 'Cancelado' || comp.tipo === 'Cancelamento') qtdCancelados++;
+        });
 
-            // Alimentação da lista de Próximos Compromissos do Rodapé
-            if (listaProximosEl && comp.tipo !== 'Cancelado' && comp.tipo !== 'Cancelamento') {
+        // "Próximos Compromissos da Semana": de verdade só o que vem nos próximos 7 dias,
+        // independente de qual mês está sendo exibido no calendário
+        if (listaProximosEl) {
+            listaProximosEl.innerHTML = '';
+
+            const agora = new Date();
+            const emSeteDias = new Date(agora.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+            const proximos = compromissos
+                .filter(c => c.tipo !== 'Cancelado' && c.tipo !== 'Cancelamento')
+                .filter(c => {
+                    const d = new Date(c.start);
+                    return d >= agora && d <= emSeteDias;
+                })
+                .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+            if (proximos.length === 0) {
+                listaProximosEl.innerHTML = '<p style="color:#94a3b8; font-size:13px;">Nenhum compromisso nos próximos 7 dias.</p>';
+            }
+
+            proximos.forEach(comp => {
                 const item = document.createElement('div');
                 item.className = 'itemEvento';
-                
+
                 if (comp.tipo === 'Treinamento') item.style.borderLeftColor = '#2563eb';
                 else if (comp.tipo === 'Visita') item.style.borderLeftColor = '#f59e0b';
                 else if (comp.tipo === 'Demanda') item.style.borderLeftColor = '#8b5cf6';
@@ -332,8 +462,8 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                 });
 
                 listaProximosEl.appendChild(item);
-            }
-        });
+            });
+        }
 
         // Injeta os valores recalculados nos Cards de Resumo
         if (document.getElementById('cardTreinamentos')) document.getElementById('cardTreinamentos').innerText = qtdTreinamentos;
@@ -345,8 +475,8 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         if (conteudoResumoEl) {
             const totalAtivos = qtdTreinamentos + qtdVisitas + qtdDemandas;
             conteudoResumoEl.innerHTML = `
-                <p>Você gerencia atualmente <strong>${totalAtivos}</strong> ações agendadas de segunda a sexta.</p>
-                <p>Compromissos abortados/cancelados: <strong>${qtdCancelados}</strong> itens.</p>
+                <p>Em <strong>${nomeDoMesExibido()}</strong>, você gerencia <strong>${totalAtivos}</strong> ações agendadas.</p>
+                <p>Compromissos abortados/cancelados no mês: <strong>${qtdCancelados}</strong> itens.</p>
                 <p style="font-size: 11px; color:#64748b; margin-top:5px;">Clique com o botão direito nos blocos do calendário para ver ações rápidas.</p>
             `;
         }
@@ -408,32 +538,13 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             const dataFormatada = inputData.value;
             const dataHoraInicio = `${dataFormatada}T${inputHoraInicio.value}:00`;
 
+            const classeCor = classePorCompromisso(selectTipo.value, selectStatus ? selectStatus.value : '');
+
             const agente = inputAgente ? inputAgente.value : '';
             const solicitante = inputSolicitante ? inputSolicitante.value : '';
             const cargoSolicitante = inputCargoSolicitante ? inputCargoSolicitante.value : '';
             const unidade = selectUnidade ? selectUnidade.value : '';
             const status = selectStatus ? selectStatus.value : 'Aguardando Confirmação';
-
-            let classeCor = 'evento-padrao';
-            if (selectTipo.value === 'Cancelado' || selectTipo.value === 'Cancelamento') {
-                classeCor = 'evento-cancelado';
-            }
-            else if (status === 'Não Compareceu') {
-                classeCor = 'evento-nao-compareceu';
-            }
-            else if (status === 'Realizado') {
-                classeCor = 'evento-concluido';
-            }
-            else if (selectTipo.value === 'Treinamento') {
-                classeCor = 'evento-treinamento';
-            }
-            else if (selectTipo.value === 'Visita') {
-                classeCor = 'evento-visita';
-            }
-            else if (selectTipo.value === 'Demanda') {
-                classeCor = 'evento-demanda';
-            }
-
             const motivoFalta = (status === 'Não Compareceu' && txtMotivoFalta) ? txtMotivoFalta.value : '';
             const qtdParticipantes = (selectTipo.value === 'Treinamento' && txtQtdParticipantes && txtQtdParticipantes.value !== '')
                 ? parseInt(txtQtdParticipantes.value, 10)
@@ -470,7 +581,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                 nomeEditorAtual = '';
 
                 if (error) {
-                    alert('⚠️ Erro ao salvar alterações: ' + error.message);
+                    mostrarToast('Erro ao salvar alterações: ' + error.message, 'erro');
                     if (btnSalvar) btnSalvar.disabled = false;
                     return;
                 }
@@ -496,7 +607,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                 const { error } = await supabaseClient.from('compromissos').insert(novoEvento);
 
                 if (error) {
-                    alert('⚠️ Erro ao criar compromisso: ' + error.message);
+                    mostrarToast('Erro ao criar compromisso: ' + error.message, 'erro');
                     if (btnSalvar) btnSalvar.disabled = false;
                     return;
                 }
@@ -524,7 +635,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             .eq('id', event.id);
 
         if (error) {
-            alert('⚠️ Erro ao salvar o novo horário: ' + error.message);
+            mostrarToast('Erro ao salvar o novo horário: ' + error.message, 'erro');
             await carregarCompromissos(); // desfaz visualmente, recarregando do banco
         }
     }
@@ -651,17 +762,14 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     calendarEl.addEventListener('contextmenu', function(e) {
         if (somenteVisualizacao) { e.preventDefault(); return; }
 
-        const blocoEventoVisual = e.target.closest('.fc-daygrid-event');
+        const blocoEventoVisual = e.target.closest('[data-event-id]');
         if (blocoEventoVisual && menuContexto) {
-            e.preventDefault(); 
-            
-            // Localiza o título interno do evento para cruzar com o array
-            const textoTitulo = blocoEventoVisual.querySelector('.fc-event-title').innerText;
-            const achado = compromissos.find(c => c.title === textoTitulo || c.title.includes(textoTitulo));
-            
-            if (achado) {
-                eventoSelecionadoParaMenu = calendar.getEventById(achado.id);
-            }
+            e.preventDefault();
+
+            // Usa o ID real do evento (gravado pelo eventDidMount) em vez de casar
+            // pelo texto do título — evita pegar o compromisso errado quando dois
+            // eventos têm o mesmo título (ex: logo após usar "Duplicar")
+            eventoSelecionadoParaMenu = calendar.getEventById(blocoEventoVisual.dataset.eventId);
 
             menuContexto.style.left = e.clientX + 'px';
             menuContexto.style.top = e.clientY + 'px';
@@ -696,7 +804,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                     .insert(compromissoParaLinha(copiaClonada));
 
                 if (error) {
-                    alert('⚠️ Erro ao duplicar: ' + error.message);
+                    mostrarToast('Erro ao duplicar: ' + error.message, 'erro');
                     return;
                 }
                 await carregarCompromissos();
@@ -712,7 +820,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         if (!origem) return;
 
         if (origem.tipo === 'Cancelado') {
-            alert("🚫 Não é possível concluir um compromisso já cancelado.");
+            mostrarToast('Não é possível concluir um compromisso já cancelado.', 'aviso');
             return;
         }
 
@@ -720,11 +828,11 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
 
         const { error } = await supabaseClient
             .from('compromissos')
-            .update({ status: 'Realizado', classname: 'evento-concluido' })
+            .update({ status: 'Realizado' })
             .eq('id', eventoSelecionadoParaMenu.id);
 
         if (error) {
-            alert('⚠️ Erro ao concluir: ' + error.message);
+            mostrarToast('Erro ao concluir: ' + error.message, 'erro');
             return;
         }
         await carregarCompromissos();
@@ -752,7 +860,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                 .eq('id', eventoSelecionadoParaMenu.id);
 
             if (error) {
-                alert('⚠️ Erro ao cancelar: ' + error.message);
+                mostrarToast('Erro ao cancelar: ' + error.message, 'erro');
                 return;
             }
             await carregarCompromissos();
@@ -775,21 +883,39 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             .eq('id', eventoSelecionadoParaMenu.id);
 
         if (error) {
-            alert('⚠️ Erro ao apagar: ' + error.message);
+            mostrarToast('Erro ao apagar: ' + error.message, 'erro');
             return;
         }
         await carregarCompromissos();
     });
 
     // =========================================================================
-    // 8. FILTROS E BUSCA POR DIGITAÇÃO
+    // 8. FILTROS E BUSCA POR DIGITAÇÃO (agora combinados, um não anula o outro)
     // =========================================================================
+    let filtroTipoAtual = 'Todos';
+    let termoBuscaAtual = '';
+
+    function aplicarFiltrosCombinados() {
+        let resultado = compromissos;
+
+        if (filtroTipoAtual === 'Cancelamento') {
+            resultado = resultado.filter(c => c.tipo === 'Cancelado' || c.tipo === 'Cancelamento');
+        } else if (filtroTipoAtual !== 'Todos') {
+            resultado = resultado.filter(c => c.tipo === filtroTipoAtual);
+        }
+
+        if (termoBuscaAtual) {
+            resultado = resultado.filter(c => c.title.toLowerCase().includes(termoBuscaAtual));
+        }
+
+        calendar.removeAllEvents();
+        calendar.addEventSource(resultado);
+    }
+
     if (inputBusca) {
         inputBusca.addEventListener('input', function(e) {
-            const termo = e.target.value.toLowerCase();
-            const filtrados = compromissos.filter(c => c.title.toLowerCase().includes(termo));
-            calendar.removeAllEvents();
-            calendar.addEventSource(filtrados);
+            termoBuscaAtual = e.target.value.toLowerCase();
+            aplicarFiltrosCombinados();
         });
     }
 
@@ -797,17 +923,8 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         botao.addEventListener('click', function() {
             botoesFiltro.forEach(b => b.classList.remove('ativo'));
             this.classList.add('ativo');
-            
-            const filtroTexto = this.innerText.trim();
-            calendar.removeAllEvents();
-            
-            if (filtroTexto === 'Todos') {
-                calendar.addEventSource(compromissos);
-            } else if (filtroTexto === 'Cancelamento') {
-                calendar.addEventSource(compromissos.filter(c => c.tipo === 'Cancelado' || c.tipo === 'Cancelamento'));
-            } else {
-                calendar.addEventSource(compromissos.filter(c => c.tipo === filtroTexto));
-            }
+            filtroTipoAtual = this.innerText.trim();
+            aplicarFiltrosCombinados();
         });
     });
 
@@ -824,29 +941,33 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         btnRelatorio.addEventListener('click', function() {
             const listaAtividadesRelatorio = document.getElementById('listaAtividadesRelatorio');
             const dataRelatorio = document.getElementById('dataRelatorio');
-            
+            const compromissosDoMes = compromissosDoMesExibido();
+
             if (dataRelatorio) {
-                dataRelatorio.innerText = `Gerado em: ${new Date().toLocaleString('pt-BR')}`;
+                dataRelatorio.innerText = `Referente a ${nomeDoMesExibido()} — gerado em ${new Date().toLocaleString('pt-BR')}`;
             }
 
-            // Pega os contadores atuais direto dos cards da tela
+            // Pega os contadores atuais direto dos cards da tela (já filtrados pelo mês exibido)
             document.getElementById('repTreinamentos').innerText = document.getElementById('cardTreinamentos').innerText;
             document.getElementById('repVisitas').innerText = document.getElementById('cardVisitas').innerText;
             document.getElementById('repDemandas').innerText = document.getElementById('cardDemandas').innerText;
             document.getElementById('repCancelados').innerText = document.getElementById('cardCancelados').innerText;
 
-            const totalParticipantes = compromissos.reduce((soma, c) => soma + (Number(c.qtdParticipantes) || 0), 0);
+            const totalParticipantes = compromissosDoMes.reduce((soma, c) => soma + (Number(c.qtdParticipantes) || 0), 0);
             const repParticipantesEl = document.getElementById('repParticipantes');
             if (repParticipantesEl) repParticipantesEl.innerText = totalParticipantes;
 
-            // Monta a lista textual limpa para impressão
+            // Monta a lista textual limpa para impressão (só do mês exibido)
             if (listaAtividadesRelatorio) {
                 listaAtividadesRelatorio.innerHTML = '';
                 
-                if (compromissos.length === 0) {
-                    listaAtividadesRelatorio.innerHTML = '<p style="color:#64748b; font-size:13px; text-align:center;">Nenhum compromisso agendado.</p>';
+                if (compromissosDoMes.length === 0) {
+                    listaAtividadesRelatorio.innerHTML = '<p style="color:#64748b; font-size:13px; text-align:center;">Nenhum compromisso neste mês.</p>';
                 } else {
-                    compromissos.forEach(comp => {
+                    compromissosDoMes
+                        .slice()
+                        .sort((a, b) => new Date(a.start) - new Date(b.start))
+                        .forEach(comp => {
                         const dataComp = new Date(comp.start).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
                         const infoParticipantes = (comp.tipo === 'Treinamento' && comp.qtdParticipantes !== null && comp.qtdParticipantes !== undefined)
                             ? ` | 👥 ${comp.qtdParticipantes} participante(s)`
@@ -915,6 +1036,7 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     const modalAdmin = document.getElementById("modalAdmin");
     const fecharAdmin = document.querySelector(".fechar-admin");
     const formUsuarioAdmin = document.getElementById("formUsuarioAdmin");
+    habilitarEnterParaSalvar(formUsuarioAdmin);
     const txtNovoUsuario = document.getElementById("txtNovoUsuario");
     const txtNovaSenha = document.getElementById("txtNovaSenha");
     const selNovoRole = document.getElementById("selNovoRole");
@@ -928,9 +1050,9 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
     if (isAdmin && btnAdmin) btnAdmin.style.display = "inline-block";
 
     async function pegarUsuarios() {
-        const { data, error } = await supabaseClient.from('usuarios').select('*').order('usuario');
+        const { data, error } = await supabaseClient.from('usuarios').select('usuario, role').order('usuario');
         if (error) {
-            alert('⚠️ Erro ao carregar usuários: ' + error.message);
+            mostrarToast('Erro ao carregar usuários: ' + error.message, 'erro');
             return [];
         }
         return data || [];
@@ -940,6 +1062,9 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         if (formUsuarioAdmin) formUsuarioAdmin.reset();
         if (usuarioOriginalEdicao) usuarioOriginalEdicao.value = "";
         if (txtNovoUsuario) txtNovoUsuario.disabled = false;
+        if (txtNovaSenha) txtNovaSenha.required = true;
+        const dicaSenha = document.getElementById("dicaSenhaAdmin");
+        if (dicaSenha) dicaSenha.innerText = "";
         if (btnSalvarUsuarioAdmin) btnSalvarUsuarioAdmin.innerHTML = "➕ Adicionar Usuário";
         if (btnCancelarEdicaoUsuario) btnCancelarEdicaoUsuario.style.display = "none";
     }
@@ -963,7 +1088,10 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             div.querySelector(".btn-editar-usuario").addEventListener("click", function() {
                 txtNovoUsuario.value = u.usuario;
                 txtNovoUsuario.disabled = true; // não deixa trocar o nome de login numa edição, evita duplicidade
-                txtNovaSenha.value = u.senha;
+                txtNovaSenha.value = "";
+                txtNovaSenha.required = false; // na edição, só troca a senha se preencher algo
+                const dicaSenha = document.getElementById("dicaSenhaAdmin");
+                if (dicaSenha) dicaSenha.innerText = "Deixe em branco para manter a senha atual.";
                 selNovoRole.value = u.role;
                 usuarioOriginalEdicao.value = u.usuario;
                 btnSalvarUsuarioAdmin.innerHTML = "💾 Salvar Alterações";
@@ -973,18 +1101,18 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
 
             div.querySelector(".btn-apagar-usuario").addEventListener("click", async function() {
                 if (usuarioLogado && usuarioLogado.usuario === u.usuario) {
-                    alert("🚫 Você não pode apagar o usuário com o qual está logado.");
+                    mostrarToast('Você não pode apagar o usuário com o qual está logado.', 'aviso');
                     return;
                 }
                 const totalAdmins = lista.filter(x => x.role === "admin").length;
                 if (u.role === "admin" && totalAdmins <= 1) {
-                    alert("🚫 Não é possível apagar o último Admin do sistema.");
+                    mostrarToast('Não é possível apagar o último Admin do sistema.', 'aviso');
                     return;
                 }
                 if (confirm(`Tem certeza que deseja apagar o usuário "${u.usuario}"?`)) {
                     const { error } = await supabaseClient.from('usuarios').delete().eq('usuario', u.usuario);
                     if (error) {
-                        alert('⚠️ Erro ao apagar usuário: ' + error.message);
+                        mostrarToast('Erro ao apagar usuário: ' + error.message, 'erro');
                         return;
                     }
                     renderizarListaUsuarios();
@@ -1021,20 +1149,21 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
             const emEdicao = usuarioOriginalEdicao.value;
 
             if (emEdicao) {
-                // Editando um usuário já existente
-                const { error } = await supabaseClient
-                    .from('usuarios')
-                    .update({ senha: senhaDigitada, role: roleEscolhida })
-                    .eq('usuario', emEdicao);
+                // Editando um usuário já existente — a função no banco cuida do hash
+                // (e mantém a senha atual se o campo for deixado em branco)
+                const { error } = await supabaseClient.rpc('editar_usuario', {
+                    p_usuario: emEdicao,
+                    p_senha: senhaDigitada, // pode vir vazio, a função trata isso
+                    p_role: roleEscolhida
+                });
 
                 if (error) {
-                    alert('⚠️ Erro ao salvar alterações do usuário: ' + error.message);
+                    mostrarToast('Erro ao salvar alterações do usuário: ' + error.message, 'erro');
                     return;
                 }
 
-                // Se o usuário editado é o que está logado agora, atualiza a sessão também
+                // Se o usuário editado é o que está logado agora, atualiza a role da sessão
                 if (usuarioLogado && usuarioLogado.usuario === emEdicao) {
-                    usuarioLogado.senha = senhaDigitada;
                     usuarioLogado.role = roleEscolhida;
                     localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
                 }
@@ -1047,16 +1176,19 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
                     .maybeSingle();
 
                 if (existente) {
-                    alert("🚫 Já existe um usuário com esse nome de login.");
+                    mostrarToast('Já existe um usuário com esse nome de login.', 'aviso');
                     return;
                 }
 
-                const { error } = await supabaseClient
-                    .from('usuarios')
-                    .insert({ usuario: nomeDigitado, senha: senhaDigitada, role: roleEscolhida });
+                // A função no banco já grava a senha com hash
+                const { error } = await supabaseClient.rpc('criar_usuario', {
+                    p_usuario: nomeDigitado,
+                    p_senha: senhaDigitada,
+                    p_role: roleEscolhida
+                });
 
                 if (error) {
-                    alert('⚠️ Erro ao criar usuário: ' + error.message);
+                    mostrarToast('Erro ao criar usuário: ' + error.message, 'erro');
                     return;
                 }
             }
@@ -1066,32 +1198,47 @@ const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
         });
     }
 
-    document.getElementById("btnLogin").onclick = async function(){
+    async function tentarLogin() {
         const usuario = document.getElementById("usuario").value;
         const senha = document.getElementById("senha").value;
         const erroLoginEl = document.getElementById("erroLogin");
 
         erroLoginEl.innerHTML = "Entrando...";
 
-        const { data, error } = await supabaseClient
-            .from('usuarios')
-            .select('*')
-            .eq('usuario', usuario)
-            .eq('senha', senha)
-            .maybeSingle();
+        const { data, error } = await supabaseClient.rpc('login_usuario', {
+            p_usuario: usuario,
+            p_senha: senha
+        });
 
         if (error) {
             erroLoginEl.innerHTML = "⚠️ Erro ao conectar com o Supabase: " + error.message;
             return;
         }
 
-        if (data) {
-            localStorage.setItem("usuarioLogado", JSON.stringify(data));
+        const usuarioEncontrado = (data && data.length > 0) ? data[0] : null;
+
+        if (usuarioEncontrado) {
+            localStorage.setItem("usuarioLogado", JSON.stringify(usuarioEncontrado));
             location.reload();
         } else {
             erroLoginEl.innerHTML = "Usuário ou senha inválidos.";
         }
-    };
+    }
+
+    document.getElementById("btnLogin").onclick = tentarLogin;
+
+    // Permite logar apertando Enter em qualquer um dos dois campos
+    ["usuario", "senha"].forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) {
+            campo.addEventListener("keydown", function(e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    tentarLogin();
+                }
+            });
+        }
+    });
 
     // Executa a primeira carga (só se já estiver logado, evita chamada desnecessária ao Supabase)
     if (usuarioLogado) {
