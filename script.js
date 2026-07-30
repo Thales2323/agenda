@@ -233,6 +233,7 @@ function habilitarEnterParaSalvar(form) {
             "ESF Vila Bretas",
             "ESF Vila Isa",
             "ESF Vila Mariana",
+            "ESF Ilha dos araujos",
             "CAPS II",
             "CAPS AD III",
             "CAPS Infantojuvenil",
