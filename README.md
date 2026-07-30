@@ -1,4 +1,4 @@
-# 📅 Agenda VIVVER
+# 📅 Agenda Flow
 
 <p align="center">
 
@@ -7,7 +7,7 @@
 Desenvolvido para apoiar equipes técnicas na organização, acompanhamento e controle das atividades realizadas junto às unidades de saúde do município.
 
 ![Status](https://img.shields.io/badge/status-em%20produ%C3%A7%C3%A3o-brightgreen)
-![Version](https://img.shields.io/badge/version-3.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 ![Backend](https://img.shields.io/badge/backend-Supabase-3ECF8E)
 
@@ -19,7 +19,7 @@ Desenvolvido para apoiar equipes técnicas na organização, acompanhamento e co
 
 ## 📌 Sobre
 
-O **Agenda VIVVER** é uma aplicação web desenvolvida para centralizar o gerenciamento das agendas das equipes técnicas da VIVVER, proporcionando maior organização, rastreabilidade e eficiência no planejamento de visitas, treinamentos e atendimentos às unidades de saúde.
+O **Agenda Flow** é uma aplicação web desenvolvida para centralizar o gerenciamento das agendas das equipes técnicas da VIVVER, proporcionando maior organização, rastreabilidade e eficiência no planejamento de visitas, treinamentos e atendimentos às unidades de saúde.
 
 O sistema utiliza uma interface intuitiva baseada em calendário interativo, com controle de acesso por login, diferentes níveis de permissão, indicadores operacionais em tempo real e geração de relatórios mensais.
 
@@ -27,21 +27,34 @@ O sistema utiliza uma interface intuitiva baseada em calendário interativo, com
 
 ## ✨ Principais Funcionalidades
 
-- 🔐 Login com controle de acesso por usuário
+- 🔐 Login com controle de acesso por usuário, com senhas armazenadas em hash (bcrypt) — nunca em texto puro
 - 👥 Três níveis de permissão: **Admin**, **Usuário** e **Visualização**
 - ⚙️ Painel de Administração (criar, editar e remover usuários)
 - 📅 Calendário interativo (FullCalendar), com visão de mês, semana e dia
 - ➕ Cadastro completo de compromissos
 - ✏️ Edição de eventos, com registro de quem editou
 - 📄 Duplicação de compromissos
-- ❌ Cancelamento com registro do responsável
-- 🗑️ Exclusão restrita a administradores, protegida por senha adicional
-- 🔎 Pesquisa em tempo real
+- ✅ Conclusão de compromissos, com registro de participantes (treinamentos)
+- ❌ Cancelamento com registro do responsável e motivo de falta
+- 🗑️ Exclusão restrita a administradores, com confirmação e opção de **desfazer**
+- 🔎 Pesquisa em tempo real combinada com os filtros por categoria
 - 🏷️ Filtros por categoria e status
 - 📊 Dashboard com indicadores operacionais
 - 📄 Relatórios mensais para impressão
 - 🖱️ Arrastar e redimensionar compromissos no calendário
-- ☁️ Dados centralizados e sincronizados em nuvem (Supabase) — todo mundo vê a mesma agenda em tempo real
+- 🌙 Modo escuro
+- ⌨️ Atalhos de teclado (`N` para novo compromisso, `Esc` para fechar modais)
+- 👤 Identificação visual por avatar de iniciais coloridas
+- ☁️ Dados centralizados e sincronizados em nuvem (Supabase) — todo mundo vê a mesma agenda em tempo real, sem precisar dar F5
+
+---
+
+## 🔐 Segurança
+
+- Senhas nunca ficam salvas nem trafegam em texto puro: são convertidas em hash (bcrypt/pgcrypto) direto no banco
+- A conferência de login acontece inteiramente no servidor (função `security definer` no Supabase), o navegador nunca lê a senha armazenada
+- A sessão salva no navegador é revalidada contra o Supabase a cada carregamento da página — se o usuário for removido ou alterado no banco, a sessão local é derrubada automaticamente
+- Regras de acesso (RLS) no banco de dados, por tabela e por coluna
 
 ---
 
@@ -65,7 +78,9 @@ Cada compromisso possui:
 - Unidade de Saúde
 - Data e horário
 - Tipo de atividade (Treinamento, Visita, Demanda, Cancelado)
-- Status (Aguardando Confirmação, Confirmado, Remarcado, Não Compareceu)
+- Status (Aguardando Confirmação, Confirmado, Realizado, Remarcado, Não Compareceu)
+- Quantidade de participantes (treinamentos)
+- Motivo da falta (quando não compareceu)
 - Observações
 - Responsável pela criação, pela edição e pelo cancelamento
 
@@ -79,7 +94,7 @@ O sistema possui um cadastro pré-configurado das principais unidades de saúde 
 <summary><strong>Ver lista completa de unidades</strong></summary>
 
 **Estratégias Saúde da Família (ESF)**
-- ESF Altinópolis, ESF Atalaia, ESF Azteca, ESF Carapina, ESF Caravelas, ESF Centro, ESF Conquista, ESF Esperança, ESF Fraternidade, ESF Jardim Pérola, ESF JK, ESF Lourdes, ESF Maria Eugênia, ESF Mãe de Deus, ESF Nossa Senhora das Graças, ESF Palmeiras, ESF Penha, ESF Planalto, ESF Santa Rita, ESF São Cristóvão, ESF São Pedro, ESF Sir, ESF Turmalina, ESF Vila Bretas, ESF Vila Isa, ESF Vila Mariana
+- ESF Altinópolis, ESF Atalaia, ESF Azteca, ESF Carapina, ESF Caravelas, ESF Centro, ESF Conquista, ESF Esperança, ESF Fraternidade, ESF Jardim Pérola, ESF JK, ESF Lourdes, ESF Maria Eugênia, ESF Mãe de Deus, ESF Nossa Senhora das Graças, ESF Palmeiras, ESF Penha, ESF Planalto, ESF Santa Rita, ESF São Cristóvão, ESF São Pedro, ESF Sir, ESF Turmalina, ESF Vila Bretas, ESF Vila Isa, ESF Vila Mariana, ESF Ilha dos Araújos
 
 **Centros Especializados**
 - CAPS II, CAPS AD III, CAPS Infantojuvenil
@@ -111,8 +126,9 @@ Ao clicar com o botão direito sobre um compromisso é possível:
 
 - ✏️ Editar
 - 📄 Duplicar
+- ✅ Concluir
 - ❌ Cancelar
-- 🗑️ Apagar *(exclusivo para Admin)*
+- 🗑️ Apagar *(exclusivo para Admin, com opção de desfazer)*
 
 ---
 
@@ -132,10 +148,10 @@ O sistema gera relatórios mensais contendo:
 | Tecnologia | Finalidade |
 |---|---|
 | HTML5 | Estrutura da aplicação |
-| CSS3 | Interface responsiva |
+| CSS3 | Interface responsiva e modo escuro |
 | JavaScript ES6 | Regras de negócio |
 | FullCalendar 6.1.18 | Calendário interativo |
-| [Supabase](https://supabase.com) | Banco de dados e persistência em nuvem |
+| [Supabase](https://supabase.com) | Banco de dados, autenticação e persistência em nuvem |
 | [Vercel](https://vercel.com) | Hospedagem e deploy contínuo |
 
 ---
@@ -154,7 +170,7 @@ JavaScript (script.js)
    ├── FullCalendar (calendário)
    ├── Dashboard e Relatórios
    ├── Painel de Administração
-   └── Supabase (usuários e compromissos, em nuvem)
+   └── Supabase (usuários e compromissos, autenticação e realtime, em nuvem)
 ```
 
 ---
@@ -178,7 +194,7 @@ git clone https://github.com/Thales2323/agenda.git
 cd agenda
 ```
 
-Abra o arquivo **index.html** em qualquer navegador moderno. As credenciais de acesso ao Supabase já estão configuradas no `script.js`.
+Abra o arquivo **index.html** em qualquer navegador moderno. As credenciais de conexão ao Supabase já estão configuradas no `script.js` (chave pública — a lógica sensível de login roda inteiramente no banco).
 
 ---
 
@@ -197,11 +213,14 @@ Abra o arquivo **index.html** em qualquer navegador moderno. As credenciais de a
 - [x] Sistema de Login
 - [x] Banco de Dados em nuvem (Supabase)
 - [x] Controle de Usuários e permissões
-- [ ] Autenticação com hash de senha (Supabase Auth)
-- [ ] Notificações
-- [ ] Exportação para PDF
+- [x] Autenticação com hash de senha (bcrypt via Supabase)
+- [x] Sincronização em tempo real (realtime) entre usuários
+- [x] Modo escuro
+- [x] Atalhos de teclado
+- [ ] Exportação de relatório para PDF
 - [ ] Exportação para Excel
-- [ ] Sincronização em tempo real (realtime) entre usuários
+- [ ] Compromissos recorrentes
+- [ ] Tela de histórico/auditoria
 - [ ] Aplicação PWA
 - [ ] Integração com Google Agenda
 
