@@ -1,700 +1,394 @@
-* {
-    margin: 0; padding: 0; box-sizing: border-box;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-}
-
-body { background: #edf2f7; color: #1a202c; overflow-x: hidden; }
-
-/* =========================================================================
-   TELA DE CARREGAMENTO INICIAL
-   ========================================================================= */
-#telaCarregando {
-    position: fixed; inset: 0; z-index: 3000;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 16px;
-    background: linear-gradient(135deg, #1e3a8a, #1e40af 45%, #3b82f6);
-    color: #fff; font-weight: 600; font-size: 14px;
-    transition: opacity .25s ease;
-}
-#telaCarregando.escondida { opacity: 0; pointer-events: none; }
-.spinner {
-    width: 40px; height: 40px; border-radius: 50%;
-    border: 4px solid rgba(255,255,255,0.3); border-top-color: #fff;
-    animation: girar .8s linear infinite;
-}
-@keyframes girar { to { transform: rotate(360deg); } }
-
-/* LAYOUT PRINCIPAL COMPACTO */
-main { flex: 1; padding: 15px; }
-
-/* =========================================================================
-   TELA DE LOGIN
-   ========================================================================= */
-#loginTela {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(135deg, #1e3a8a, #1e40af 45%, #3b82f6);
-    padding: 20px;
-    z-index: 2000;
-}
-
-.login-box {
-    background: #fff;
-    width: 100%;
-    max-width: 360px;
-    padding: 40px 32px 32px;
-    border-radius: 20px;
-    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    text-align: center;
-}
-
-.login-box h2 {
-    color: #1e3a8a;
-    font-size: 24px;
-    font-weight: 800;
-    margin-bottom: 10px;
-}
-
-.login-box input {
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: 2px solid #e2e8f0;
-    outline: none;
-    font-size: 14px;
-    font-family: inherit;
-    width: 100%;
-    transition: border-color 0.2s;
-}
-
-.login-box input:focus { border-color: #3b82f6; }
-
-.login-box button {
-    margin-top: 6px;
-    border: none;
-    padding: 12px 22px;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #3b82f6, #1e40af);
-    color: #fff;
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-    transition: opacity 0.2s;
-}
-
-.login-box button:hover { opacity: 0.9; }
-
-.login-box #erroLogin {
-    min-height: 16px;
-    color: #ef4444;
-    font-size: 13px;
-    font-weight: 600;
-}
-
-/* =========================================================================
-   PAINEL DE ADMINISTRAÇÃO
-   ========================================================================= */
-.fechar-admin {
-    position: absolute; top: 15px; right: 20px;
-    font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;
-}
-.fechar-admin:hover { color: #1e293b; }
-
-.item-usuario-admin {
-    display: flex; align-items: center; justify-content: space-between;
-    background: #f8fafc; border-radius: 10px; padding: 10px 14px;
-    margin-bottom: 8px;
-}
-.item-usuario-admin .nome-usuario-admin {
-    font-weight: 700; font-size: 14px; color: #1e293b;
-}
-.badge-role {
-    display: inline-block; margin-left: 8px; padding: 2px 10px;
-    border-radius: 20px; font-size: 11px; font-weight: 700;
-}
-.badge-role-admin { background: #dbeafe; color: #1d4ed8; }
-.badge-role-usuario { background: #dcfce7; color: #15803d; }
-.badge-role-visualizador { background: #f1f5f9; color: #64748b; }
-
-.acoes-usuario-admin { display: flex; gap: 6px; }
-.acoes-usuario-admin button {
-    border: none; background: #e2e8f0; padding: 6px 10px;
-    border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
-}
-.acoes-usuario-admin .btn-editar-usuario:hover { background: #bfdbfe; }
-.acoes-usuario-admin .btn-apagar-usuario:hover { background: #fecaca; }
-
-.topo {
-    display: flex; justify-content: center; align-items: center;
-    position: relative; margin-bottom: 15px;
-}
-.topo h1 { font-size: 26px; color: #1f2937; font-weight: 800; }
-
-.topo-acoes {
-    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
-    display: flex; gap: 10px;
-}
-
-#btnAdmin {
-    border: none; padding: 9px 16px; border-radius: 10px;
-    background: #fff; color: #1e40af; font-weight: 700; font-size: 13px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.08); cursor: pointer;
-    transition: all 0.2s;
-}
-#btnAdmin:hover { background: #1e40af; color: #fff; }
-
-#btnTema {
-    border: none; padding: 9px 14px; border-radius: 10px;
-    background: #fff; font-size: 15px; cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.08); transition: all 0.2s;
-}
-#btnTema:hover { background: #e2e8f0; }
-
-#btnLogout {
-    border: none; padding: 9px 16px; border-radius: 10px;
-    background: #fff; color: #ef4444; font-weight: 700; font-size: 13px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.08); cursor: pointer;
-    transition: all 0.2s;
-}
-#btnLogout:hover { background: #ef4444; color: #fff; }
-
-/* AGENDA E CALENDÁRIO */
-.agenda {
-    background: #fff; border-radius: 20px; padding: 15px;
-    box-shadow: 0 10px 25px rgba(0,0,0,.05); margin-bottom: 15px;
-}
-
-#calendar {
-    width: 100%;
-    background: #eef2f7;
-    padding: 10px;
-    border: 1px solid #c3ccd6;
-    border-radius: 16px;
-    box-shadow: inset 0 1px 2px rgba(15,23,42,.05), 0 10px 20px rgba(15,23,42,.08);
-
-    /* Cores usadas internamente pelo FullCalendar */
-    --fc-border-color: #d3dae2;
-    --fc-neutral-bg-color: #f1f5f9;
-    --fc-today-bg-color: #dbeafe;
-    --fc-page-bg-color: #ffffff;
-}
-
-.fc .fc-scrollgrid {
-    border-radius: 10px !important;
-    overflow: hidden;
-}
-
-/* Cabeçalho dos dias da semana (seg., ter., qua...) com fundo próprio */
-.fc .fc-col-header-cell {
-    background: #ffffff;
-    border-bottom: 2px solid #d3dae2 !important;
-}
-.fc .fc-col-header-cell-cushion {
-    padding: 10px 4px; font-weight: 700; color: #334155;
-    text-transform: uppercase; font-size: 12px; letter-spacing: .04em;
-}
-
-/* Linhas de divisão dos dias mais nítidas */
-.fc-theme-standard td, .fc-theme-standard th { border-color: #d3dae2 !important; }
-.fc .fc-scrollgrid { border-color: #c3ccd6 !important; }
-
-.fc .fc-daygrid-day-number {
-    font-weight: 700; color: #475569; padding: 6px 8px; font-size: 13px;
-}
-.fc .fc-day-today .fc-daygrid-day-number {
-    color: #1e40af;
-}
-
-.busca { margin-bottom: 10px; }
-.busca input {
-    width: 100%; padding: 10px 15px; border-radius: 12px;
-    border: 2px solid #e2e8f0; outline: none; font-size: 15px;
-}
-.busca input:focus { border-color: #3b82f6; }
-
-.filtros { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
-.filtro {
-    border: none; padding: 8px 16px; border-radius: 10px;
-    background: #e2e8f0; color: #4a5568; cursor: pointer;
-    font-weight: 600; font-size: 13px; transition: all 0.2s;
-}
-.filtro:hover { background: #cbd5e1; }
-.filtro.ativo { background: #1e40af; color: #fff; }
-
-.legenda-cores {
-    display: flex; align-items: center; gap: 14px; margin-left: auto;
-    font-size: 12px; color: #64748b; font-weight: 600;
-}
-.legenda-cores span { display: flex; align-items: center; gap: 5px; }
-.bolinha-legenda {
-    display: inline-block; width: 9px; height: 9px; border-radius: 50%;
-}
-
-/* CARDS (5 COLUNAS) */
-.cards {
-    display: grid; grid-template-columns: repeat(5, 1fr);
-    gap: 15px; margin-top: 15px; margin-bottom: 15px;
-}
-
-.card {
-    position: relative; overflow: hidden;
-    padding: 16px 18px; border-radius: 16px; color: white;
-    box-shadow: 0 6px 14px rgba(15,23,42,0.14);
-    display: flex; flex-direction: column; justify-content: space-between;
-    gap: 14px;
-    transition: transform .18s ease, box-shadow .18s ease;
-}
-
-/* Brilho sutil no canto, pra dar profundidade sem poluir */
-.card::after {
-    content: "";
-    position: absolute; top: -30%; right: -20%;
-    width: 120px; height: 120px; border-radius: 50%;
-    background: rgba(255,255,255,0.16);
-    pointer-events: none;
-}
-
-.card-topo { display: flex; align-items: center; gap: 10px; z-index: 1; }
-
-.card-icone {
-    display: flex; align-items: center; justify-content: center;
-    width: 34px; height: 34px; border-radius: 50%;
-    background: rgba(255,255,255,0.22);
-    font-size: 16px; flex-shrink: 0;
-}
-
-.card h2 { font-size: 13px; font-weight: 700; margin: 0; letter-spacing: .02em; }
-
-.card-numero {
-    font-size: 34px; font-weight: 800; line-height: 1;
-    font-variant-numeric: tabular-nums; z-index: 1;
-}
-.card-numero-texto { font-size: 14px; font-weight: 700; }
-
-.treinamento { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-.visita       { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
-.demanda     { background: linear-gradient(135deg, #a78bfa, #8b5cf6); }
-.cancelar    { background: linear-gradient(135deg, #f87171, #ef4444); }
-.relatorio-card { background: linear-gradient(135deg, #0284c7, #0369a1); }
-
-.card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px rgba(15,23,42,0.22); }
-
-/* RODAPÉ */
-.rodape { display: grid; grid-template-columns: 2fr 1fr; gap: 15px; }
-.proximos, .resumo {
-    background: #fff; border-radius: 15px; padding: 15px;
-    box-shadow: 0 10px 25px rgba(0,0,0,.05);
-}
-.proximos h2, .resumo h2 { margin-bottom: 10px; color: #1f2937; font-size: 16px; }
-
-#listaProximos {
-    max-height: 320px;
-    overflow-y: auto;
-    padding-right: 6px; /* espaço pra rolagem não colar nos itens */
-}
-
-/* Rolagem estilizada, combinando com a cara do sistema */
-#listaProximos::-webkit-scrollbar { width: 8px; }
-#listaProximos::-webkit-scrollbar-track { background: transparent; }
-#listaProximos::-webkit-scrollbar-thumb {
-    background: #cbd5e1; border-radius: 20px;
-}
-#listaProximos::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-#listaProximos { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
-
-.itemEvento {
-    border-left: 5px solid #cbd5e1; background: #f8fafc;
-    padding: 10px; margin-bottom: 8px; border-radius: 8px;
-    cursor: pointer; transition: all 0.2s;
-}
-.itemEvento:hover { background: #f1f5f9; transform: translateX(2px); }
-.itemEvento h4 { font-size: 15px; color: #1e293b; margin-bottom: 3px; }
-.itemEvento p { color: #64748b; font-size: 13px; }
-
-/* MODAIS E MENU DIREITO */
-.modal {
-    display: none; position: fixed; inset: 0;
-    background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
-    justify-content: center; align-items: center; z-index: 1000; padding: 20px;
-}
-.modal-content {
-    background: white; padding: 22px 26px; border-radius: 20px;
-    width: 100%; max-width: 500px; position: relative;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-    max-height: 90vh;
-    overflow-y: auto;
-}
-.modal-content h2 { margin-bottom: 14px; font-size: 19px; }
-.fechar-detalhes {
-    position: absolute; top: 15px; right: 20px;
-    font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;
-}
-.fechar-detalhes:hover { color: #1e293b; }
-.fechar-cadastro {
-    position: absolute; top: 15px; right: 20px;
-    font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;
-}
-.fechar-cadastro:hover { color: #1e293b; }
-
-/* MODAL DE DETALHES DO COMPROMISSO */
-.detalhe-eyebrow {
-    font-size: 11px; font-weight: 700; letter-spacing: 1px;
-    color: #94a3b8; margin-bottom: 10px;
-}
-.detalhe-cabecalho {
-    display: flex; align-items: flex-start; gap: 14px;
-    padding-bottom: 16px; margin-bottom: 16px;
-    border-bottom: 1px solid #e2e8f0;
-}
-.detalhe-icone-tipo {
-    flex-shrink: 0; width: 46px; height: 46px; border-radius: 12px;
-    background: #eff6ff; display: flex; align-items: center; justify-content: center;
-    font-size: 22px;
-}
-.detalhe-titulo {
-    font-size: 18px; color: #1e293b; margin-bottom: 8px; line-height: 1.3;
-}
-.detalhe-badge {
-    display: inline-block; padding: 4px 12px; border-radius: 20px;
-    font-size: 12px; font-weight: 700;
-}
-.badge-aguardando { background: #fef3c7; color: #b45309; }
-.badge-confirmado { background: #dcfce7; color: #15803d; }
-.badge-realizado { background: #d1fae5; color: #047857; }
-.badge-remarcado { background: #dbeafe; color: #1d4ed8; }
-.badge-nao-compareceu { background: #fee2e2; color: #b91c1c; }
-.badge-cancelado { background: #f1f5f9; color: #64748b; text-decoration: line-through; }
-
-.detalhe-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-    margin-bottom: 16px;
-}
-.detalhe-item {
-    background: #f8fafc; border-radius: 10px; padding: 10px 12px;
-    display: flex; flex-direction: column; gap: 3px;
-}
-.detalhe-label {
-    font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase;
-}
-.detalhe-valor { font-size: 14px; color: #1e293b; font-weight: 600; }
-.detalhe-cargo { font-size: 12px; color: #64748b; font-weight: 500; }
-
-.detalhe-secao { margin-bottom: 14px; }
-.detalhe-secao-titulo {
-    font-size: 12px; font-weight: 700; color: #475569;
-    margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
-}
-.detalhe-item-linha {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 14px;
-}
-.detalhe-item-linha:last-child { border-bottom: none; }
-.detalhe-item-linha .detalhe-label {
-    text-transform: none; font-size: 13px; color: #64748b; font-weight: 600;
-}
-
-/* AVATAR DE INICIAIS (cor gerada a partir do nome do usuário) */
-.avatar-iniciais {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px; border-radius: 50%;
-    color: #fff; font-size: 10px; font-weight: 800;
-    margin-right: 6px; flex-shrink: 0; vertical-align: middle;
-}
-.linha-com-avatar { display: flex; align-items: center; }
-.detalhe-obs {
-    background: #f8fafc; border-radius: 10px; padding: 12px;
-    font-size: 14px; color: #334155; line-height: 1.5;
-}
-.detalhe-obs-falta {
-    background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
-}
-
-/* FORMULÁRIO DE CADASTRO DE COMPROMISSO */
-.form-group { margin-bottom: 10px; display: flex; flex-direction: column; gap: 4px; }
-.form-row { display: flex; gap: 8px; }
-.form-row .form-group { flex: 1; }
-.form-group-tipo { flex: 0.7 !important; }
-.form-group-status { flex: 1.2 !important; }
-.form-group label { font-size: 12px; font-weight: 600; color: #475569; }
-.form-group input,
-.form-group select,
-.form-group textarea {
-    padding: 7px 10px; border-radius: 8px;
-    border: 2px solid #e2e8f0; outline: none;
-    font-size: 13px; font-family: inherit; width: 100%;
-}
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus { border-color: #3b82f6; }
-.form-group textarea { resize: vertical; }
-.form-group input[readonly] {
-    background: #eff6ff; color: #1e3a8a; font-weight: 600;
-    border-color: #bfdbfe; cursor: not-allowed;
-}
-.form-actions { margin-top: 6px; text-align: right; }
-.btn-salvar {
-    border: none; padding: 10px 20px; border-radius: 10px;
-    background: linear-gradient(135deg, #3b82f6, #1e40af);
-    color: white; font-weight: 700; font-size: 14px; cursor: pointer;
-}
-.btn-salvar:hover { opacity: 0.9; }
-
-.menu-evento {
-    display: none; flex-direction: column; background: white;
-    border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.15);
-    border: 1px solid #e2e8f0; overflow: hidden;
-}
-.menu-evento button {
-    border: none; background: white; padding: 10px 15px;
-    cursor: pointer; text-align: left; font-size: 14px;
-}
-.menu-evento button:hover { background: #f1f5f9; }
-
-/* EVENTOS NO CALENDÁRIO */
-.fc-event {
-    border: none !important; border-radius: 8px !important;
-    padding: 3px 6px !important; color: white !important; cursor: pointer;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
-    transition: transform .12s ease, box-shadow .12s ease;
-}
-.fc-event:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(15, 23, 42, 0.3);
-}
-.fc-daygrid-event-harness { margin-bottom: 3px !important; overflow: hidden; }
-.fc-event-title {
-    font-weight: 700 !important; font-size: 11px !important;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    display: block;
-}
-
-/* Link "+N mais" que agrupa o excesso de compromissos do dia */
-.fc-daygrid-more-link {
-    font-weight: 700 !important; font-size: 11px !important;
-    color: #1e40af !important; background: #eff6ff !important;
-    border-radius: 6px !important; padding: 1px 6px !important; margin-top: 2px !important;
-}
-.fc-daygrid-more-link:hover { background: #dbeafe !important; }
-
-/* Balão que abre com a lista completa dos compromissos daquele dia */
-.fc-popover {
-    border-radius: 12px !important; border: 1px solid #e2e8f0 !important;
-    box-shadow: 0 10px 25px rgba(0,0,0,.15) !important; overflow: hidden;
-}
-.fc-popover-header {
-    background: #1e40af !important; color: #fff !important; padding: 8px 12px !important;
-}
-.fc-popover-body { padding: 6px !important; }
-
-/* Cores Injetadas pelo JS */
-.evento-treinamento { background-color: #2563eb !important; }
-.evento-visita       { background-color: #f59e0b !important; }
-.evento-demanda      { background-color: #8b5cf6 !important; }
-.evento-cancelado    { background-color: #ef4444 !important; text-decoration: line-through; }
-.evento-padrao       { background-color: #64748b !important; }
-.evento-nao-compareceu { background-color: #f59e0b !important; }
-.evento-concluido      { background-color: #22c55e !important; }
-
-/* =========================================================================
-   RESPONSIVIDADE
-   ========================================================================= */
-
-/* TABLETS (até 1024px) */
-@media (max-width: 1024px) {
-    .cards { grid-template-columns: repeat(3, 1fr); }
-    .rodape { grid-template-columns: 1fr; }
-}
-
-/* CELULARES (até 640px) */
-@media (max-width: 640px) {
-    main { padding: 10px; }
-
-    /* Cabeçalho: empilha título e botões, tira o posicionamento absoluto */
-    .topo {
-        flex-direction: column; gap: 10px; align-items: center;
-    }
-    .topo h1 { font-size: 20px; text-align: center; }
-    .topo-acoes {
-        position: static; transform: none;
-        width: 100%; justify-content: center; flex-wrap: wrap;
-    }
-    #btnAdmin, #btnLogout { font-size: 12px; padding: 8px 12px; }
-
-    .agenda { padding: 10px; border-radius: 14px; }
-
-    .busca input { font-size: 14px; }
-    .filtros { gap: 6px; }
-    .filtro { padding: 7px 12px; font-size: 12px; }
-
-    /* Título e botões do FullCalendar ficam grandes demais no celular */
-    .fc-toolbar-title { font-size: 16px !important; }
-    .fc-toolbar { gap: 8px; }
-    .fc-button { padding: 4px 8px !important; font-size: 12px !important; }
-    .fc-event-title { font-size: 10px !important; }
-
-    /* Cards de resumo: 2 colunas em vez de 5 */
-    .cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .card { padding: 10px 14px; }
-    .card h2 { font-size: 13px; }
-    .card span { font-size: 24px; }
-
-    .rodape { gap: 10px; }
-    .proximos, .resumo { padding: 12px; }
-
-    /* Modais ocupam quase a tela toda, sem margens exageradas */
-    .modal { padding: 10px; }
-    .modal-content { padding: 20px; border-radius: 16px; max-width: 100%; max-height: 95vh; }
-
-    /* Formulário: campos lado a lado viram empilhados */
-    .form-row { flex-direction: column; gap: 14px; }
-
-    .detalhe-grid { grid-template-columns: 1fr; }
-    .detalhe-cabecalho { gap: 10px; }
-
-    .login-box { padding: 30px 22px 24px; }
-}
-
-/* =========================================================================
-   NOTIFICAÇÕES (TOASTS)
-   ========================================================================= */
-.toast-container {
-    position: fixed; top: 20px; right: 20px; z-index: 3000;
-    display: flex; flex-direction: column; gap: 10px;
-    max-width: 340px;
-}
-
-.toast {
-    display: flex; align-items: flex-start; gap: 10px;
-    background: #fff; border-radius: 12px; padding: 12px 14px;
-    box-shadow: 0 10px 25px rgba(15,23,42,0.18);
-    border-left: 5px solid #64748b;
-    font-size: 13px; color: #1e293b; line-height: 1.4;
-    animation: toast-entrada .25s ease;
-}
-.toast-erro { border-left-color: #ef4444; }
-.toast-sucesso { border-left-color: #22c55e; }
-.toast-aviso { border-left-color: #f59e0b; }
-
-.toast-icone { font-size: 16px; flex-shrink: 0; }
-.toast-acao {
-    border: none; background: #1e40af; color: #fff; font-weight: 700;
-    font-size: 12px; padding: 5px 12px; border-radius: 8px; cursor: pointer;
-    flex-shrink: 0; margin-left: 4px;
-}
-.toast-acao:hover { background: #1e3a8a; }
-.toast-fechar {
-    margin-left: auto; border: none; background: transparent;
-    color: #94a3b8; font-size: 16px; cursor: pointer; line-height: 1;
-    padding: 0 0 0 6px;
-}
-.toast-fechar:hover { color: #1e293b; }
-
-.toast-saindo { animation: toast-saida .2s ease forwards; }
-
-@keyframes toast-entrada {
-    from { opacity: 0; transform: translateX(30px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-@keyframes toast-saida {
-    from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0; transform: translateX(30px); }
-}
-/* =========================================================================
-   MODO ESCURO
-   Ativado via atributo data-tema="escuro" na tag <html> (alternado pelo
-   botão 🌙 no cabeçalho e lembrado no navegador).
-   ========================================================================= */
-html[data-tema="escuro"] body { background: #0f172a; color: #e2e8f0; }
-
-html[data-tema="escuro"] .topo h1 { color: #f1f5f9; }
-
-html[data-tema="escuro"] #btnAdmin,
-html[data-tema="escuro"] #btnLogout,
-html[data-tema="escuro"] #btnTema {
-    background: #1e293b; color: #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-}
-html[data-tema="escuro"] #btnAdmin { color: #93c5fd; }
-html[data-tema="escuro"] #btnLogout { color: #fca5a5; }
-
-html[data-tema="escuro"] .agenda,
-html[data-tema="escuro"] .proximos,
-html[data-tema="escuro"] .resumo,
-html[data-tema="escuro"] .modal-content {
-    background: #1e293b; color: #e2e8f0;
-    box-shadow: 0 10px 25px rgba(0,0,0,.3);
-}
-
-html[data-tema="escuro"] .proximos h2,
-html[data-tema="escuro"] .resumo h2,
-html[data-tema="escuro"] .modal-content h2,
-html[data-tema="escuro"] .detalhe-titulo,
-html[data-tema="escuro"] .detalhe-valor {
-    color: #f1f5f9;
-}
-
-html[data-tema="escuro"] #calendar {
-    background: #0f172a; border-color: #334155;
-    --fc-border-color: #334155;
-    --fc-neutral-bg-color: #1e293b;
-    --fc-today-bg-color: #1e3a5f;
-    --fc-page-bg-color: #0f172a;
-}
-html[data-tema="escuro"] .fc .fc-col-header-cell { background: #1e293b; }
-html[data-tema="escuro"] .fc .fc-col-header-cell-cushion { color: #cbd5e1; }
-html[data-tema="escuro"] .fc .fc-daygrid-day-number { color: #94a3b8; }
-html[data-tema="escuro"] .fc-theme-standard td,
-html[data-tema="escuro"] .fc-theme-standard th { border-color: #334155 !important; }
-
-html[data-tema="escuro"] .busca input,
-html[data-tema="escuro"] .form-group input,
-html[data-tema="escuro"] .form-group select,
-html[data-tema="escuro"] .form-group textarea {
-    background: #0f172a; border-color: #334155; color: #e2e8f0;
-}
-html[data-tema="escuro"] .form-group label { color: #94a3b8; }
-html[data-tema="escuro"] .form-group input[readonly] {
-    background: #1e3a5f; color: #bfdbfe; border-color: #334155;
-}
-
-html[data-tema="escuro"] .filtro { background: #334155; color: #cbd5e1; }
-html[data-tema="escuro"] .filtro:hover { background: #475569; }
-html[data-tema="escuro"] .filtro.ativo { background: #3b82f6; color: #fff; }
-html[data-tema="escuro"] .legenda-cores { color: #94a3b8; }
-
-html[data-tema="escuro"] .itemEvento,
-html[data-tema="escuro"] .detalhe-item,
-html[data-tema="escuro"] .detalhe-obs,
-html[data-tema="escuro"] .item-usuario-admin {
-    background: #0f172a; color: #e2e8f0;
-}
-html[data-tema="escuro"] .itemEvento h4 { color: #f1f5f9; }
-html[data-tema="escuro"] .itemEvento p,
-html[data-tema="escuro"] .detalhe-label,
-html[data-tema="escuro"] .detalhe-cargo {
-    color: #94a3b8;
-}
-html[data-tema="escuro"] .item-usuario-admin .nome-usuario-admin { color: #f1f5f9; }
-
-html[data-tema="escuro"] .detalhe-cabecalho,
-html[data-tema="escuro"] .detalhe-item-linha {
-    border-color: #334155;
-}
-
-html[data-tema="escuro"] .menu-evento {
-    background: #1e293b; border-color: #334155;
-}
-html[data-tema="escuro"] .menu-evento button { background: #1e293b; color: #e2e8f0; }
-html[data-tema="escuro"] .menu-evento button:hover { background: #334155; }
-
-html[data-tema="escuro"] .toast {
-    background: #1e293b; color: #e2e8f0; box-shadow: 0 10px 25px rgba(0,0,0,.4);
-}
-
-html[data-tema="escuro"] .avatar-iniciais {
-    box-shadow: 0 0 0 2px #1e293b;
-}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda da Semana</title>
+    <!-- CSS do FullCalendar -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css' rel='stylesheet' />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+        <div id="loginTela">
+        <span class="login-bolha login-bolha-1"></span>
+        <span class="login-bolha login-bolha-2"></span>
+        <span class="login-bolha login-bolha-3"></span>
+
+        <div class="login-card">
+            <div class="login-icone">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="4.5" width="18" height="16" rx="2.5" fill="currentColor"/>
+                    <path d="M3 9.5H21" stroke="#2563eb" stroke-width="1.4"/>
+                    <path d="M7.5 3V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M16.5 3V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <rect x="6.3" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
+                    <rect x="10.5" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
+                    <rect x="14.7" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
+                </svg>
+            </div>
+
+            <div class="login-titulo-linha">
+                <h1>Agenda Flow</h1>
+                <span class="login-versao">v2.1</span>
+            </div>
+            <p class="login-subtitulo">Sistema de Agendamento Corporativo</p>
+
+            <span class="login-divisor"></span>
+
+            <p class="login-intro">Faça login para acessar sua agenda.</p>
+
+            <div class="campo-login">
+                <span class="campo-icone">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M5 20c0-3.6 3.13-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <input id="usuario" placeholder="Usuário" autocomplete="username">
+            </div>
+
+            <div class="campo-login">
+                <span class="campo-icone">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="5" y="10.5" width="14" height="9.5" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <input id="senha" type="password" placeholder="Senha" autocomplete="current-password">
+                <button type="button" id="btnVerSenha" class="campo-icone-direita" aria-label="Mostrar senha">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" stroke="currentColor" stroke-width="1.7"/>
+                        <circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="login-opcoes">
+                <label class="opcao-lembrar">
+                    <input type="checkbox" id="lembrarMe">
+                    <span>Lembrar-me</span>
+                </label>
+                <a href="#" class="link-esqueceu">Esqueceu sua senha?</a>
+            </div>
+
+            <button id="btnLogin" type="button">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 5l6 7-6 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3 12h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
+                Entrar no Sistema
+            </button>
+
+            <p id="erroLogin"></p>
+
+            <div class="login-separador">
+                <span></span>
+                <p>
+                    Acesso restrito
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        <path d="M9.5 12l1.8 1.8L14.5 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </p>
+                <span></span>
+            </div>
+
+            <div class="login-rodape">
+                <p>© 2026 Agenda Flow. Todos os direitos reservados.</p>
+                <p>Desenvolvido por <strong>Thales Systems</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Alterna a visibilidade da senha na tela de login
+        (function () {
+            var btnVer = document.getElementById('btnVerSenha');
+            var campoSenha = document.getElementById('senha');
+            if (btnVer && campoSenha) {
+                btnVer.addEventListener('click', function () {
+                    var visivel = campoSenha.type === 'text';
+                    campoSenha.type = visivel ? 'password' : 'text';
+                    btnVer.classList.toggle('ativo', !visivel);
+                });
+            }
+        })();
+    </script>
+
+    <main id="sistema" style="display:none;">    
+        <header class="topo">
+            <h1>Agenda da Semana</h1>
+            <div class="topo-acoes">
+                <button id="btnAdmin" title="Administração" style="display:none;">⚙️ Administração</button>
+                <button id="btnLogout" title="Sair">🚪 Sair</button>
+            </div>
+        </header>
+
+        <!-- ÁREA DO CALENDÁRIO E FILTROS -->
+        <section class="agenda">
+            <div class="busca">
+                <input type="text" placeholder="Pesquisar compromisso...">
+            </div>
+            <div class="filtros">
+                <button class="filtro ativo">Todos</button>
+                <button class="filtro">Treinamento</button>
+                <button class="filtro">Visita</button>
+                <button class="filtro">Demanda</button>
+                <button class="filtro">Cancelamento</button>
+
+                <div class="legenda-cores">
+                    <span><i class="bolinha-legenda" style="background:#2563eb;"></i>Treinamento</span>
+                    <span><i class="bolinha-legenda" style="background:#f59e0b;"></i>Visita / Não Compareceu</span>
+                    <span><i class="bolinha-legenda" style="background:#8b5cf6;"></i>Demanda</span>
+                    <span><i class="bolinha-legenda" style="background:#22c55e;"></i>Concluído</span>
+                    <span><i class="bolinha-legenda" style="background:#ef4444;"></i>Cancelado</span>
+                </div>
+            </div>
+            <!-- Container do FullCalendar -->
+            <div id="calendar"></div>
+        </section>
+
+        <!-- CARDS DE RESUMO (5 COLUNAS) -->
+        <section class="cards">
+            <div class="card treinamento">
+                <div class="card-topo">
+                    <span class="card-icone">🎓</span>
+                    <h2>Treinamentos</h2>
+                </div>
+                <span class="card-numero" id="cardTreinamentos">0</span>
+            </div>
+            <div class="card visita">
+                <div class="card-topo">
+                    <span class="card-icone">🚗</span>
+                    <h2>Visitas</h2>
+                </div>
+                <span class="card-numero" id="cardVisitas">0</span>
+            </div>
+            <div class="card demanda">
+                <div class="card-topo">
+                    <span class="card-icone">📋</span>
+                    <h2>Demandas</h2>
+                </div>
+                <span class="card-numero" id="cardDemandas">0</span>
+            </div>
+            <div class="card cancelar">
+                <div class="card-topo">
+                    <span class="card-icone">❌</span>
+                    <h2>Cancelados</h2>
+                </div>
+                <span class="card-numero" id="cardCancelados">0</span>
+            </div>
+            <!-- Card de Relatório Clicável -->
+            <div id="btnRelatorio" class="card relatorio-card" style="cursor: pointer;">
+                <div class="card-topo">
+                    <span class="card-icone">📊</span>
+                    <h2>Relatório</h2>
+                </div>
+                <span class="card-numero card-numero-texto">Gerar Mensal</span>
+            </div>
+        </section>
+
+        <!-- RODAPÉ (PRÓXIMOS E RESUMO) -->
+        <div class="rodape">
+            <div class="proximos">
+                <h2>📅 Próximos Compromissos da Semana</h2>
+                <div id="listaProximos"></div>
+            </div>
+            <div class="resumo">
+                <h2>💡 Resumo Operacional</h2>
+                <div id="conteudoResumo"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL DE CADASTRO/EDIÇÃO DE COMPROMISSO -->
+    <div id="modalCadastro" class="modal">
+        <div class="modal-content">
+            <span class="fechar-cadastro">&times;</span>
+            <h2 id="tituloModalCadastro">Novo Compromisso</h2>
+            <form id="formCadastroEvento">
+                <div class="form-group">
+                    <label for="txtTitulo">Título</label>
+                    <input type="text" id="txtTitulo" required placeholder="Ex: Visita técnica - ESF Centro">
+                </div>
+
+                <div class="form-group">
+                    <label for="txtAgente">Agente (Vivver)</label>
+                    <input type="text" id="txtAgente" required readonly placeholder="Nome do agente que está marcando">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="txtSolicitante">Solicitado por</label>
+                        <input type="text" id="txtSolicitante" required placeholder="Nome de quem solicitou">
+                    </div>
+                    <div class="form-group">
+                        <label for="txtCargoSolicitante">Cargo do Solicitante</label>
+                        <input type="text" id="txtCargoSolicitante" required placeholder="Ex: Enfermeira, Coordenador...">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="selUnidade">Unidade de Saúde</label>
+                        <select id="selUnidade" required>
+                            <!-- Preenchido dinamicamente pelo script.js (objeto "municipios") -->
+                        </select>
+                    </div>
+                    <div class="form-group form-group-tipo">
+                        <label for="selTipo">Tipo</label>
+                        <select id="selTipo" required>
+                            <option value="Treinamento">🎓 Treinamento</option>
+                            <option value="Visita">🚗 Visita</option>
+                            <option value="Demanda">📋 Demanda</option>
+                            <option value="Cancelado" hidden>❌ Cancelado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="txtData">Data</label>
+                        <input type="date" id="txtData" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="txtHoraInicio">Hora</label>
+                        <input type="time" id="txtHoraInicio" required>
+                    </div>
+                    <div class="form-group form-group-status">
+                        <label for="selStatus">Status</label>
+                        <select id="selStatus" required>
+                            <option value="Aguardando Confirmação">🟡 Aguardando</option>
+                            <option value="Confirmado">🟢 Confirmado</option>
+                            <option value="Realizado">✅ Realizado</option>
+                            <option value="Remarcado">🔵 Remarcado</option>
+                            <option value="Não Compareceu">🔴 Faltou</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="grupoParticipantes" style="display:none;">
+                    <label for="txtQtdParticipantes">👥 Quantos participantes compareceram?</label>
+                    <input type="number" id="txtQtdParticipantes" min="0" placeholder="Ex: 12">
+                </div>
+
+                <div class="form-group" id="grupoMotivoFalta" style="display:none;">
+                    <label for="txtMotivoFalta">🔴 Motivo da Falta</label>
+                    <textarea id="txtMotivoFalta" rows="2" placeholder="Explique por que a pessoa não compareceu..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="txtDescricao">Descrição</label>
+                    <textarea id="txtDescricao" rows="2" required placeholder="Observações adicionais..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-salvar">💾 Salvar Compromisso</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE DETALHES (Onde o 'X' deve funcionar) -->
+    <div id="modalDetalhes" class="modal">
+        <div class="modal-content">
+            <!-- Botão Fechar (X) -->
+            <span class="fechar-detalhes">&times;</span>
+            <p class="detalhe-eyebrow">DETALHES DO COMPROMISSO</p>
+            <div id="conteudoDetalhes">
+                <!-- Conteúdo preenchido pelo JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MENU DE CONTEXTO (Botão Direito) -->
+    <div class="menu-evento" style="display: none; position: fixed; z-index: 1100;">
+        <button id="btnEditarCompromisso">✏️ Editar</button>
+        <button id="btnDuplicarCompromisso">📄 Duplicar</button>
+        <button id="btnConcluirCompromisso" style="color: #059669;">✅ Concluir</button>
+        <button id="btnCancelarCompromisso" style="color: #f59e0b;">❌ Cancelar</button>
+        <hr id="divisorApagar" style="border: 0; border-top: 1px solid #e2e8f0; margin: 0;">
+        <button id="btnApagar" style="color: #ef4444;">🗑️ Apagar</button>
+    </div>
+
+    <!-- Scripts do FullCalendar e Local -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales/pt-br.global.min.js'></script>
+    <!-- Cliente do Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+
+
+    <!-- MODAL DE RELATÓRIO MENSAL -->
+    <div id="modalRelatorio" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px; width: 90%;">
+            <span class="fechar-relatorio" id="btnFecharRelatorio" style="position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;">&times;</span>
+            
+            <div id="impressaoArea">
+                <h2 style="margin-bottom: 5px; color: #1e3a8a;">📊 Relatório Operacional Mensal</h2>
+                <p id="dataRelatorio" style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Gerado em: --/--/----</p>
+                
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px;">
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🎓 Treinamentos</span><strong id="repTreinamentos" style="display:block; font-size: 18px; color: #2563eb;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🚗 Visitas</span><strong id="repVisitas" style="display:block; font-size: 18px; color: #f59e0b;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">📋 Demandas</span><strong id="repDemandas" style="display:block; font-size: 18px; color: #8b5cf6;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">❌ Cancelados</span><strong id="repCancelados" style="display:block; font-size: 18px; color: #ef4444;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">👥 Participantes</span><strong id="repParticipantes" style="display:block; font-size: 18px; color: #059669;">0</strong></div>
+                </div>
+
+                <h3 style="font-size: 14px; color: #334155; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">Lista de Atividades do Mês</h3>
+                <div id="listaAtividadesRelatorio" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;">
+                    <!-- Preenchido dinamicamente pelo JS -->
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                <button id="btnApenasFecharRelatorio" style="padding: 10px 20px; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; font-weight: 600;">Fechar</button>
+                <button id="btnImprimirDoRelatorio" style="padding: 10px 20px; border: none; border-radius: 8px; background: #0284c7; color: white; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;">🖨️ Imprimir Relatório</button>
+            </div>
+        </div>
+    </div>
+    <!-- MODAL DE ADMINISTRAÇÃO (SOMENTE ADMIN) -->
+    <div id="modalAdmin" class="modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <span class="fechar-admin">&times;</span>
+            <h2>⚙️ Administração</h2>
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">Gerencie quem tem acesso ao sistema e o que cada um pode fazer.</p>
+
+            <form id="formUsuarioAdmin">
+                <input type="hidden" id="usuarioOriginalEdicao" value="">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="txtNovoUsuario">Usuário</label>
+                        <input type="text" id="txtNovoUsuario" required placeholder="Nome de login">
+                    </div>
+                    <div class="form-group">
+                        <label for="txtNovaSenha">Senha</label>
+                        <input type="password" id="txtNovaSenha" required autocomplete="new-password" placeholder="Senha de acesso">
+                        <small id="dicaSenhaAdmin" style="color:#94a3b8; font-size:11px;"></small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="selNovoRole">Permissão</label>
+                    <select id="selNovoRole" required>
+                        <option value="usuario">🙋 Usuário (cria e edita compromissos)</option>
+                        <option value="admin">👑 Admin (acesso total + administração)</option>
+                        <option value="visualizador">👁️ Visualização (só vê calendário e relatório)</option>
+                    </select>
+                </div>
+                <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" id="btnCancelarEdicaoUsuario" style="display:none; background:#e2e8f0; border:none; padding:10px 18px; border-radius:10px; font-weight:600; cursor:pointer;">Cancelar edição</button>
+                    <button type="submit" class="btn-salvar" id="btnSalvarUsuarioAdmin">➕ Adicionar Usuário</button>
+                </div>
+            </form>
+
+            <h3 style="font-size:14px; color:#334155; margin:22px 0 10px; border-bottom:2px solid #e2e8f0; padding-bottom:6px;">Usuários Cadastrados</h3>
+            <div id="listaUsuariosAdmin" style="max-height: 260px; overflow-y: auto;"></div>
+        </div>
+    </div>
+    <!-- CONTAINER DE NOTIFICAÇÕES (TOASTS) -->
+    <div id="toastContainer" class="toast-container"></div>
+
+</body>
+</html>
