@@ -3,39 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agenda Flow 2.1</title>
+    <title>Agenda da Semana</title>
     <!-- CSS do FullCalendar -->
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css' rel='stylesheet' />
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- TELA DE CARREGAMENTO INICIAL -->
-    <div id="telaCarregando">
-        <div class="spinner"></div>
-        <p>Carregando agenda...</p>
-    </div>
-
         <div id="loginTela">
-        <div class="login-box">
-            <h2>Agenda Flow <span style="font-size:13px; font-weight:600; color:#94a3b8;">2.1</span></h2>
-            <input id="usuario" placeholder="Usuário">
-            <input
-                id="senha"
-                type="password"
-                placeholder="Senha">
-            <button id="btnLogin">
-                Entrar
+        <span class="login-bolha login-bolha-1"></span>
+        <span class="login-bolha login-bolha-2"></span>
+        <span class="login-bolha login-bolha-3"></span>
+
+        <div class="login-card">
+            <div class="login-icone">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="4.5" width="18" height="16" rx="2.5" fill="currentColor"/>
+                    <path d="M3 9.5H21" stroke="#2563eb" stroke-width="1.4"/>
+                    <path d="M7.5 3V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M16.5 3V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <rect x="6.3" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
+                    <rect x="10.5" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
+                    <rect x="14.7" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
+                </svg>
+            </div>
+
+            <div class="login-titulo-linha">
+                <h1>Agenda Flow</h1>
+                <span class="login-versao">v2.1</span>
+            </div>
+            <p class="login-subtitulo">Sistema de Agendamento Corporativo</p>
+
+            <span class="login-divisor"></span>
+
+            <p class="login-intro">Faça login para acessar sua agenda.</p>
+
+            <div class="campo-login">
+                <span class="campo-icone">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M5 20c0-3.6 3.13-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <input id="usuario" placeholder="Usuário" autocomplete="username">
+            </div>
+
+            <div class="campo-login">
+                <span class="campo-icone">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="5" y="10.5" width="14" height="9.5" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <input id="senha" type="password" placeholder="Senha" autocomplete="current-password">
+                <button type="button" id="btnVerSenha" class="campo-icone-direita" aria-label="Mostrar senha">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" stroke="currentColor" stroke-width="1.7"/>
+                        <circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="login-opcoes">
+                <label class="opcao-lembrar">
+                    <input type="checkbox" id="lembrarMe">
+                    <span>Lembrar-me</span>
+                </label>
+                <a href="#" class="link-esqueceu">Esqueceu sua senha?</a>
+            </div>
+
+            <button id="btnLogin" type="button">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 5l6 7-6 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3 12h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
+                Entrar no Sistema
             </button>
+
             <p id="erroLogin"></p>
+
+            <div class="login-separador">
+                <span></span>
+                <p>
+                    Acesso restrito
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        <path d="M9.5 12l1.8 1.8L14.5 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </p>
+                <span></span>
+            </div>
+
+            <div class="login-rodape">
+                <p>© 2026 Agenda Flow. Todos os direitos reservados.</p>
+                <p>Desenvolvido por <strong>Thales Systems</strong></p>
+            </div>
         </div>
     </div>
 
+    <script>
+        // Alterna a visibilidade da senha na tela de login
+        (function () {
+            var btnVer = document.getElementById('btnVerSenha');
+            var campoSenha = document.getElementById('senha');
+            if (btnVer && campoSenha) {
+                btnVer.addEventListener('click', function () {
+                    var visivel = campoSenha.type === 'text';
+                    campoSenha.type = visivel ? 'password' : 'text';
+                    btnVer.classList.toggle('ativo', !visivel);
+                });
+            }
+        })();
+    </script>
+
     <main id="sistema" style="display:none;">    
         <header class="topo">
-            <h1>Agenda Flow <span style="font-size:14px; font-weight:600; color:#94a3b8; vertical-align:middle;">2.1</span></h1>
+            <h1>Agenda da Semana</h1>
             <div class="topo-acoes">
-                <button id="btnTema" title="Alternar tema claro/escuro">🌙</button>
                 <button id="btnAdmin" title="Administração" style="display:none;">⚙️ Administração</button>
                 <button id="btnLogout" title="Sair">🚪 Sair</button>
             </div>
