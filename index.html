@@ -1,394 +1,1369 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agenda da Semana</title>
-    <!-- CSS do FullCalendar -->
-    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css' rel='stylesheet' />
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
+// Ajustes: checagens de elementos, escapeHTML, mapping classname/className, uuid fallback, proteções diversas.
+document.addEventListener('DOMContentLoaded', async function() {
 
-        <div id="loginTela">
-        <span class="login-bolha login-bolha-1"></span>
-        <span class="login-bolha login-bolha-2"></span>
-        <span class="login-bolha login-bolha-3"></span>
+    // ==========================
+    // UTILITÁRIOS
+    // ==========================
+    function escapeHTML(str) {
+        return String(str || '').replace(/[&<>"']/g, function(m) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[m];
+        });
+    }
 
-        <div class="login-card">
-            <div class="login-icone">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="3" y="4.5" width="18" height="16" rx="2.5" fill="currentColor"/>
-                    <path d="M3 9.5H21" stroke="#2563eb" stroke-width="1.4"/>
-                    <path d="M7.5 3V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <path d="M16.5 3V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    <rect x="6.3" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
-                    <rect x="10.5" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
-                    <rect x="14.7" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
-                </svg>
+    function gerarId() {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
+        }
+        return String(Date.now());
+    }
+
+    // ==========================
+    // CONEXÃO COM O SUPABASE
+    // ==========================
+    const SUPABASE_URL = 'https://pjzjlckhwjgdibhhlffj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_5kP1SdaVUZTph0xdSgK-Ug_egN_B0T4';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ==========================
+    // LOGIN
+    // ==========================
+    let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
+
+    if (usuarioLogado) {
+        try {
+            const { data: usuarioAtual, error: erroRevalidacao } = await supabaseClient
+                .from('usuarios')
+                .select('usuario, role')
+                .eq('usuario', usuarioLogado.usuario)
+                .maybeSingle();
+
+            if (erroRevalidacao || !usuarioAtual) {
+                localStorage.removeItem("usuarioLogado");
+                usuarioLogado = null;
+            } else {
+                usuarioLogado = usuarioAtual;
+                localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
+            }
+        } catch (err) {
+            console.error('Erro revalidacao:', err);
+            localStorage.removeItem("usuarioLogado");
+            usuarioLogado = null;
+        }
+    }
+
+    const somenteVisualizacao = !!(usuarioLogado && usuarioLogado.role === "visualizador");
+    const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
+
+    // =========================================================================
+    // SISTEMA DE NOTIFICAÇÕES (TOASTS)
+    // =========================================================================
+    const iconesToast = { erro: '⚠️', sucesso: '✅', aviso: '🚫' };
+
+    function mostrarToast(mensagem, tipo = 'erro') {
+        const container = document.getElementById('toastContainer');
+        if (!container) { alert(mensagem); return; }
+
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${tipo}`;
+        toast.innerHTML = `
+            <span class="toast-icone">${iconesToast[tipo] || 'ℹ️'}</span>
+            <span>${escapeHTML(mensagem)}</span>
+            <button class="toast-fechar" aria-label="Fechar">&times;</button>
+        `;
+
+        function remover() {
+            toast.classList.add('toast-saindo');
+            setTimeout(() => toast.remove(), 200);
+        }
+
+        const btnFechar = toast.querySelector('.toast-fechar');
+        if (btnFechar) btnFechar.addEventListener('click', remover);
+        container.appendChild(toast);
+        setTimeout(remover, 6000);
+    }
+
+    function mostrarToastAcao(mensagem, textoAcao, aoClicarAcao) {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-aviso';
+        toast.innerHTML = `
+            <span class="toast-icone">🗑️</span>
+            <span>${escapeHTML(mensagem)}</span>
+            <button class="toast-acao">${escapeHTML(textoAcao)}</button>
+            <button class="toast-fechar" aria-label="Fechar">&times;</button>
+        `;
+
+        function remover() {
+            toast.classList.add('toast-saindo');
+            setTimeout(() => toast.remove(), 200);
+        }
+
+        const timeoutSumir = setTimeout(remover, 6000);
+
+        const btnAcao = toast.querySelector('.toast-acao');
+        if (btnAcao) {
+            btnAcao.addEventListener('click', function() {
+                clearTimeout(timeoutSumir);
+                remover();
+                aoClicarAcao();
+            });
+        }
+
+        const btnFechar = toast.querySelector('.toast-fechar');
+        if (btnFechar) {
+            btnFechar.addEventListener('click', function() {
+                clearTimeout(timeoutSumir);
+                remover();
+            });
+        }
+
+        container.appendChild(toast);
+    }
+
+    // Garante que apertar Enter salva o formulário
+    function habilitarEnterParaSalvar(form) {
+        if (!form) return;
+        form.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            if (e.target.tagName === 'TEXTAREA') return;
+            if (e.target.tagName === 'BUTTON') return;
+            e.preventDefault();
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        });
+    }
+
+    // =========================================================================
+    // DOM e Estado inicial
+    // =========================================================================
+    const telaLogin = document.getElementById("loginTela");
+    const sistema = document.getElementById("sistema");
+
+    if (telaLogin && sistema) {
+        if (usuarioLogado) {
+            telaLogin.style.display = "none";
+            sistema.style.display = "block";
+        } else {
+            telaLogin.style.display = "flex";
+            sistema.style.display = "none";
+        }
+    }
+
+    const telaCarregandoEl = document.getElementById('telaCarregando');
+    if (telaCarregandoEl) {
+        telaCarregandoEl.classList.add('escondida');
+        setTimeout(() => telaCarregandoEl.remove(), 300);
+    }
+
+    // =========================================================================
+    // MODO ESCURO
+    // =========================================================================
+    const btnTema = document.getElementById('btnTema');
+    function aplicarTema(tema) {
+        document.documentElement.setAttribute('data-tema', tema);
+        if (btnTema) btnTema.innerText = tema === 'escuro' ? '☀️' : '🌙';
+    }
+    aplicarTema(localStorage.getItem('temaAgenda') || 'claro');
+    if (btnTema) {
+        btnTema.addEventListener('click', function() {
+            const temaAtual = document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro';
+            localStorage.setItem('temaAgenda', temaAtual);
+            aplicarTema(temaAtual);
+        });
+    }
+
+    function corAPartirDoNome(nome) {
+        const paleta = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
+        let soma = 0;
+        for (let i = 0; i < (nome || '').length; i++) soma += nome.charCodeAt(i);
+        return paleta[soma % paleta.length];
+    }
+
+    function avatarIniciaisHTML(nome) {
+        if (!nome) return '';
+        const iniciais = escapeHTML((nome.trim().slice(0, 2) || '').toUpperCase());
+        const cor = corAPartirDoNome(nome);
+        return `<span class="avatar-iniciais" style="background:${cor};">${iniciais}</span>`;
+    }
+
+    // =========================================================================
+    // CONVERSÕES ENTRE DB E APP
+    // =========================================================================
+    function classePorCompromisso(tipo, status) {
+        if (tipo === 'Cancelado' || tipo === 'Cancelamento') return 'evento-cancelado';
+        if (status === 'Não Compareceu') return 'evento-nao-compareceu';
+        if (status === 'Realizado') return 'evento-concluido';
+        if (tipo === 'Treinamento') return 'evento-treinamento';
+        if (tipo === 'Visita') return 'evento-visita';
+        if (tipo === 'Demanda') return 'evento-demanda';
+        return 'evento-padrao';
+    }
+
+    function linhaParaCompromisso(row) {
+        return {
+            id: row.id,
+            title: row.title,
+            start: row.start,
+            end: row.end || undefined,
+            tipo: row.tipo,
+            // Mapeia o campo do DB 'classname' para a propriedade do FullCalendar 'className'
+            className: row.classname || classePorCompromisso(row.tipo, row.status),
+            descricao: row.descricao || '',
+            agente: row.agente || '',
+            solicitante: row.solicitante || '',
+            cargoSolicitante: row.cargo_solicitante || '',
+            unidade: row.unidade || '',
+            status: row.status || '',
+            criadoPor: row.criado_por || '',
+            editadoPor: row.editado_por || '',
+            canceladoPor: row.cancelado_por || '',
+            motivoFalta: row.motivo_falta || '',
+            qtdParticipantes: row.qtd_participantes ?? null
+        };
+    }
+
+    function compromissoParaLinha(c) {
+        return {
+            id: c.id,
+            title: c.title,
+            start: c.start,
+            end: c.end || null,
+            tipo: c.tipo,
+            // grava no DB usando o nome do campo 'classname'
+            classname: classePorCompromisso(c.tipo, c.status),
+            descricao: c.descricao || '',
+            agente: c.agente || '',
+            solicitante: c.solicitante || '',
+            cargo_solicitante: c.cargoSolicitante || '',
+            unidade: c.unidade || '',
+            status: c.status || '',
+            criado_por: c.criadoPor || '',
+            editado_por: c.editadoPor || '',
+            cancelado_por: c.canceladoPor || '',
+            motivo_falta: c.motivoFalta || '',
+            qtd_participantes: (c.qtdParticipantes === null || c.qtdParticipantes === undefined || c.qtdParticipantes === '') ? null : c.qtdParticipantes
+        };
+    }
+
+    // =========================================================================
+    // ESTADO GLOBAL
+    // =========================================================================
+    let compromissos = [];
+
+    let modoEdicao = false;
+    let idEventoSelecionado = null;
+    let dataSelecionadaClique = null;
+    let eventoSelecionadoParaMenu = null;
+    let nomeEditorAtual = '';
+
+    // =========================================================================
+    // MAPEAMENTO DE ELEMENTOS DO DOM
+    // =========================================================================
+    const calendarEl = document.getElementById('calendar');
+    const inputBusca = document.querySelector('.busca input');
+    const botoesFiltro = document.querySelectorAll('.filtro');
+    const menuContexto = document.querySelector('.menu-evento');
+    const btnApagarEvento = document.getElementById('btnApagar');
+    const divisorApagar = document.getElementById('divisorApagar');
+    if (!isAdmin) {
+        if (btnApagarEvento) btnApagarEvento.style.display = 'none';
+        if (divisorApagar) divisorApagar.style.display = 'none';
+    }
+
+    const modalDetalhes = document.getElementById('modalDetalhes');
+    const modalCadastro = document.getElementById('modalCadastro') || document.getElementById('cadastroEvento');
+
+    const btnFecharDetalhes = document.querySelector('.fechar-detalhes');
+    const btnFecharCadastro = document.querySelector('.fechar-cadastro') || document.querySelector('.fechar');
+
+    const formCadastro = document.getElementById('formCadastroEvento') || document.querySelector('#modalCadastro form');
+    habilitarEnterParaSalvar(formCadastro);
+    const inputTitulo = document.getElementById('txtTitulo') || document.getElementById('titulo');
+    const inputAgente = document.getElementById('txtAgente');
+    const inputSolicitante = document.getElementById('txtSolicitante');
+    const inputCargoSolicitante = document.getElementById('txtCargoSolicitante');
+    const selectUnidade = document.getElementById('selUnidade');
+
+    // MUNICÍPIOS / UNIDADES
+    const municipios = {
+        "Governador Valadares": [
+            "ESF Altinópolis",
+            "ESF Atalaia",
+            "ESF Azteca",
+            "ESF Carapina",
+            "ESF Caravelas",
+            "ESF Centro",
+            "ESF Conquista",
+            "ESF Esperança",
+            "ESF Fraternidade",
+            "ESF Jardim Pérola",
+            "ESF JK",
+            "ESF Lourdes",
+            "ESF Maria Eugênia",
+            "ESF Mãe de Deus",
+            "ESF Nossa Senhora das Graças",
+            "ESF Palmeiras",
+            "ESF Penha",
+            "ESF Planalto",
+            "ESF Santa Rita",
+            "ESF São Cristóvão",
+            "ESF São Pedro",
+            "ESF Sir",
+            "ESF Turmalina",
+            "ESF Vila Bretas",
+            "ESF Vila Isa",
+            "ESF Vila Mariana",
+            "ESF Ilha dos araujos",
+            "CAPS II",
+            "CAPS AD III",
+            "CAPS Infantojuvenil",
+            "Hospital Municipal de Governador Valadares",
+            "Hospital Bom Samaritano",
+            "Universidade Vale do Rio Doce 1",
+            "Universidade Vale do Rio Doce 2",
+        ]
+    };
+
+    function popularUnidades() {
+        if (!selectUnidade) return;
+        selectUnidade.innerHTML = '<option value="">Selecione a unidade...</option>';
+        Object.keys(municipios).forEach(nomeMunicipio => {
+            const grupo = document.createElement('optgroup');
+            grupo.label = nomeMunicipio;
+            municipios[nomeMunicipio].forEach(unidade => {
+                const opcao = document.createElement('option');
+                opcao.value = unidade;
+                opcao.textContent = unidade;
+                grupo.appendChild(opcao);
+            });
+            selectUnidade.appendChild(grupo);
+        });
+    }
+    popularUnidades();
+
+    const inputData = document.getElementById('txtData') || document.getElementById('data');
+    const inputHoraInicio = document.getElementById('txtHoraInicio') || document.getElementById('horaInicio');
+    const selectTipo = document.getElementById('selTipo') || document.getElementById('tipo');
+    const selectStatus = document.getElementById('selStatus');
+    const txtDescricao = document.getElementById('txtDescricao') || document.getElementById('descricao');
+    const grupoMotivoFalta = document.getElementById('grupoMotivoFalta');
+    const txtMotivoFalta = document.getElementById('txtMotivoFalta');
+    const grupoParticipantes = document.getElementById('grupoParticipantes');
+    const txtQtdParticipantes = document.getElementById('txtQtdParticipantes');
+
+    function atualizarVisibilidadeParticipantes() {
+        if (!grupoParticipantes || !selectTipo) return;
+        grupoParticipantes.style.display = (selectTipo.value === 'Treinamento') ? 'flex' : 'none';
+    }
+    if (selectTipo) {
+        selectTipo.addEventListener('change', atualizarVisibilidadeParticipantes);
+        atualizarVisibilidadeParticipantes();
+    }
+
+    function atualizarVisibilidadeMotivoFalta() {
+        if (!grupoMotivoFalta || !selectStatus) return;
+        const faltou = selectStatus.value === 'Não Compareceu';
+        grupoMotivoFalta.style.display = faltou ? 'flex' : 'none';
+        if (txtMotivoFalta) txtMotivoFalta.required = faltou;
+    }
+    if (selectStatus) {
+        selectStatus.addEventListener('change', atualizarVisibilidadeMotivoFalta);
+        atualizarVisibilidadeMotivoFalta();
+    }
+
+    // =========================================================================
+    // FULLCALENDAR (cria somente se existir elemento)
+    // =========================================================================
+    let calendar = null;
+    if (calendarEl) {
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            height: 'auto',
+            locale: 'pt-br',
+            weekends: false,
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            buttonText: { today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' },
+            events: [],
+            editable: !somenteVisualizacao,
+            selectable: !somenteVisualizacao,
+            dayMaxEvents: 3,
+            moreLinkText: function(num) { return `+${num} mais`; },
+            eventOrder: 'start',
+            eventOrderStrict: true,
+            select: function(info) {
+                dataSelecionadaClique = info.startStr;
+                abrirModalCadastro(false, null);
+            },
+            eventClick: function(info) {
+                abrirModalDetalhes(info.event);
+            },
+            eventDrop: function(info) {
+                atualizarDataEvento(info.event);
+            },
+            eventResize: function(info) {
+                atualizarDataEvento(info.event);
+            },
+            eventTimeFormat: { hour: '2-digit', minute: '2-digit', meridiem: false },
+            eventDidMount: function(info) {
+                info.el.setAttribute('data-event-id', info.event.id);
+            },
+            datesSet: function() {
+                atualizarDashboard();
+            }
+        });
+        calendar.render();
+    }
+
+    // =========================================================================
+    // CARREGA COMPROMISSOS
+    // =========================================================================
+    async function carregarCompromissos() {
+        const { data, error } = await supabaseClient
+            .from('compromissos')
+            .select('*')
+            .order('start', { ascending: true });
+
+        if (error) {
+            mostrarToast('Erro ao carregar compromissos: ' + (error.message || error), 'erro');
+            return;
+        }
+
+        compromissos = (data || []).map(linhaParaCompromisso);
+        if (calendar) {
+            calendar.removeAllEvents();
+            calendar.addEventSource(compromissos);
+        }
+        atualizarDashboard();
+    }
+
+    // =========================================================================
+    // DASHBOARD
+    // =========================================================================
+    function compromissosDoMesExibido() {
+        if (!calendar) return [];
+        const dataFoco = calendar.getDate();
+        const anoFoco = dataFoco.getFullYear();
+        const mesFoco = dataFoco.getMonth();
+
+        return compromissos.filter(c => {
+            const d = new Date(c.start);
+            return d.getFullYear() === anoFoco && d.getMonth() === mesFoco;
+        });
+    }
+
+    function nomeDoMesExibido() {
+        if (!calendar) return '';
+        return calendar.getDate().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    }
+
+    function atualizarDashboard() {
+        let qtdTreinamentos = 0, qtdVisitas = 0, qtdDemandas = 0, qtdCancelados = 0;
+        const listaProximosEl = document.getElementById('listaProximos');
+        const conteudoResumoEl = document.getElementById('conteudoResumo');
+
+        compromissosDoMesExibido().forEach(comp => {
+            if (comp.tipo === 'Treinamento') qtdTreinamentos++;
+            else if (comp.tipo === 'Visita') qtdVisitas++;
+            else if (comp.tipo === 'Demanda') qtdDemandas++;
+            else if (comp.tipo === 'Cancelado' || comp.tipo === 'Cancelamento') qtdCancelados++;
+        });
+
+        if (listaProximosEl) {
+            listaProximosEl.innerHTML = '';
+
+            const agora = new Date();
+            const emSeteDias = new Date(agora.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+            const proximos = compromissos
+                .filter(c => c.tipo !== 'Cancelado' && c.tipo !== 'Cancelamento')
+                .filter(c => {
+                    const d = new Date(c.start);
+                    return d >= agora && d <= emSeteDias;
+                })
+                .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+            if (proximos.length === 0) {
+                listaProximosEl.innerHTML = '<p style="color:#94a3b8; font-size:13px;">Nenhum compromisso nos próximos 7 dias.</p>';
+            }
+
+            proximos.forEach(comp => {
+                const item = document.createElement('div');
+                item.className = 'itemEvento';
+
+                if (comp.tipo === 'Treinamento') item.style.borderLeftColor = '#2563eb';
+                else if (comp.tipo === 'Visita') item.style.borderLeftColor = '#f59e0b';
+                else if (comp.tipo === 'Demanda') item.style.borderLeftColor = '#8b5cf6';
+
+                const dataObj = new Date(comp.start);
+                const dataFormatada = dataObj.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+                const horaFormatada = dataObj.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+
+                item.innerHTML = `
+                    <h4>${escapeHTML(comp.title)}</h4>
+                    <p>📅 ${escapeHTML(dataFormatada)} às ${escapeHTML(horaFormatada)} | <strong>${escapeHTML(comp.tipo)}</strong></p>
+                `;
+
+                item.addEventListener('click', () => {
+                    if (!calendar) return;
+                    const ev = calendar.getEventById(comp.id);
+                    if (ev) abrirModalDetalhes(ev);
+                });
+
+                listaProximosEl.appendChild(item);
+            });
+        }
+
+        if (document.getElementById('cardTreinamentos')) document.getElementById('cardTreinamentos').innerText = qtdTreinamentos;
+        if (document.getElementById('cardVisitas')) document.getElementById('cardVisitas').innerText = qtdVisitas;
+        if (document.getElementById('cardDemandas')) document.getElementById('cardDemandas').innerText = qtdDemandas;
+        if (document.getElementById('cardCancelados')) document.getElementById('cardCancelados').innerText = qtdCancelados;
+
+        if (conteudoResumoEl) {
+            const totalAtivos = qtdTreinamentos + qtdVisitas + qtdDemandas;
+            conteudoResumoEl.innerHTML = `
+                <p>Em <strong>${escapeHTML(nomeDoMesExibido())}</strong>, você gerencia <strong>${totalAtivos}</strong> ações agendadas.</p>
+                <p>Compromissos abortados/cancelados no mês: <strong>${qtdCancelados}</strong> itens.</p>
+                <p style="font-size: 11px; color:#64748b; margin-top:5px;">Clique com o botão direito nos blocos do calendário para ver ações rápidas.</p>
+            `;
+        }
+    }
+
+    // =========================================================================
+    // CRUD: Abrir modal e salvar
+    // =========================================================================
+    function abrirModalCadastro(editar = false, event = null) {
+        modoEdicao = editar;
+        const tituloModal = document.getElementById('tituloModalCadastro');
+        if (tituloModal) tituloModal.innerText = editar ? 'Editar Compromisso' : 'Novo Compromisso';
+
+        if (editar && event) {
+            idEventoSelecionado = event.id;
+
+            const tituloLimpo = (event.title || '').split(' - Editado por')[0].split(' - Cancelado por')[0];
+            if (inputTitulo) inputTitulo.value = tituloLimpo;
+
+            const dataIso = (event.startStr || '').split('T')[0];
+            if (inputData) inputData.value = dataIso;
+
+            const horaIn = event.startStr && event.startStr.split('T')[1] ? event.startStr.split('T')[1].substring(0,5) : '';
+            if (inputHoraInicio) inputHoraInicio.value = horaIn;
+
+            if (inputAgente) inputAgente.value = event.extendedProps?.agente || '';
+            if (inputSolicitante) inputSolicitante.value = event.extendedProps?.solicitante || '';
+            if (inputCargoSolicitante) inputCargoSolicitante.value = event.extendedProps?.cargoSolicitante || '';
+            if (selectUnidade) selectUnidade.value = event.extendedProps?.unidade || '';
+            if (selectTipo) selectTipo.value = event.extendedProps?.tipo || 'Treinamento';
+            if (selectStatus) selectStatus.value = event.extendedProps?.status || 'Aguardando Confirmação';
+            if (txtDescricao) txtDescricao.value = event.extendedProps?.descricao || '';
+            if (txtMotivoFalta) txtMotivoFalta.value = event.extendedProps?.motivoFalta || '';
+            if (txtQtdParticipantes) txtQtdParticipantes.value = event.extendedProps?.qtdParticipantes ?? '';
+        } else {
+            idEventoSelecionado = null;
+            if (formCadastro) formCadastro.reset();
+            if (inputData && dataSelecionadaClique) inputData.value = dataSelecionadaClique;
+            if (inputHoraInicio) inputHoraInicio.value = '';
+            if (selectStatus) selectStatus.value = 'Aguardando Confirmação';
+            if (inputAgente) inputAgente.value = usuarioLogado ? usuarioLogado.usuario : '';
+            if (txtMotivoFalta) txtMotivoFalta.value = '';
+            if (txtQtdParticipantes) txtQtdParticipantes.value = '';
+        }
+
+        atualizarVisibilidadeMotivoFalta();
+        atualizarVisibilidadeParticipantes();
+        if (modalCadastro) modalCadastro.style.display = 'flex';
+    }
+
+    if (formCadastro) {
+        formCadastro.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const dataFormatada = inputData?.value || '';
+            const horaVal = inputHoraInicio?.value || '';
+            const dataHoraInicio = dataFormatada ? `${dataFormatada}T${horaVal}:00` : '';
+
+            const tipoVal = selectTipo ? selectTipo.value : '';
+            const statusVal = selectStatus ? selectStatus.value : '';
+
+            const classeCor = classePorCompromisso(tipoVal, statusVal);
+
+            const agente = inputAgente ? inputAgente.value : '';
+            const solicitante = inputSolicitante ? inputSolicitante.value : '';
+            const cargoSolicitante = inputCargoSolicitante ? inputCargoSolicitante.value : '';
+            const unidade = selectUnidade ? selectUnidade.value : '';
+            const status = selectStatus ? selectStatus.value : 'Aguardando Confirmação';
+            const motivoFalta = (status === 'Não Compareceu' && txtMotivoFalta) ? txtMotivoFalta.value : '';
+            const qtdParticipantes = (selectTipo && selectTipo.value === 'Treinamento' && txtQtdParticipantes && txtQtdParticipantes.value !== '')
+                ? parseInt(txtQtdParticipantes.value, 10)
+                : null;
+
+            const btnSalvar = formCadastro.querySelector('.btn-salvar');
+            if (btnSalvar) btnSalvar.disabled = true;
+
+            if (modoEdicao && idEventoSelecionado) {
+                const dadosAtualizados = {
+                    title: inputTitulo ? inputTitulo.value : '',
+                    start: dataHoraInicio,
+                    tipo: tipoVal,
+                    classname: classeCor,
+                    agente: agente,
+                    solicitante: solicitante,
+                    cargo_solicitante: cargoSolicitante,
+                    unidade: unidade,
+                    status: status,
+                    descricao: txtDescricao ? txtDescricao.value : '',
+                    motivo_falta: motivoFalta,
+                    qtd_participantes: qtdParticipantes
+                };
+                if (nomeEditorAtual) dadosAtualizados.editado_por = nomeEditorAtual;
+                if (selectTipo && selectTipo.value !== 'Cancelado') dadosAtualizados.cancelado_por = '';
+
+                const { error } = await supabaseClient
+                    .from('compromissos')
+                    .update(dadosAtualizados)
+                    .eq('id', idEventoSelecionado);
+
+                nomeEditorAtual = '';
+
+                if (error) {
+                    mostrarToast('Erro ao salvar alterações: ' + (error.message || error), 'erro');
+                    if (btnSalvar) btnSalvar.disabled = false;
+                    return;
+                }
+            } else {
+                const novoEvento = {
+                    id: gerarId(),
+                    title: inputTitulo ? inputTitulo.value : '',
+                    start: dataHoraInicio,
+                    criado_por: usuarioLogado ? usuarioLogado.usuario : '',
+                    tipo: tipoVal,
+                    classname: classeCor,
+                    agente: agente,
+                    solicitante: solicitante,
+                    cargo_solicitante: cargoSolicitante,
+                    unidade: unidade,
+                    status: status,
+                    descricao: txtDescricao ? txtDescricao.value : '',
+                    motivo_falta: motivoFalta,
+                    qtd_participantes: qtdParticipantes
+                };
+
+                const { error } = await supabaseClient.from('compromissos').insert(novoEvento);
+
+                if (error) {
+                    mostrarToast('Erro ao criar compromisso: ' + (error.message || error), 'erro');
+                    if (btnSalvar) btnSalvar.disabled = false;
+                    return;
+                }
+            }
+
+            await carregarCompromissos();
+            if (btnSalvar) btnSalvar.disabled = false;
+            if (modalCadastro) modalCadastro.style.display = 'none';
+        });
+    }
+
+    async function atualizarDataEvento(event) {
+        compromissos = compromissos.map(c => {
+            if (c.id === event.id) {
+                return { ...c, start: event.startStr, end: event.endStr || event.startStr };
+            }
+            return c;
+        });
+        atualizarDashboard();
+
+        const { error } = await supabaseClient
+            .from('compromissos')
+            .update({ start: event.startStr, end: event.endStr || event.startStr })
+            .eq('id', event.id);
+
+        if (error) {
+            mostrarToast('Erro ao salvar o novo horário: ' + (error.message || error), 'erro');
+            await carregarCompromissos();
+        }
+    }
+
+    // =========================================================================
+    // DETALHES
+    // =========================================================================
+    const iconesTipo = { 'Treinamento': '🎓', 'Visita': '🚗', 'Demanda': '📋', 'Cancelado': '❌' };
+    const classesStatus = {
+        'Aguardando Confirmação': 'badge-aguardando',
+        'Confirmado': 'badge-confirmado',
+        'Realizado': 'badge-realizado',
+        'Remarcado': 'badge-remarcado',
+        'Não Compareceu': 'badge-nao-compareceu'
+    };
+
+    function abrirModalDetalhes(event) {
+        const conteudo = document.getElementById('conteudoDetalhes');
+        if (!modalDetalhes || !conteudo || !event) return;
+
+        const desc = event.extendedProps?.descricao || 'Sem descrição cadastrada.';
+        const tipo = event.extendedProps?.tipo || 'Padrão';
+        const agente = event.extendedProps?.agente || 'Não informado';
+        const solicitante = event.extendedProps?.solicitante || 'Não informado';
+        const cargoSolicitante = event.extendedProps?.cargoSolicitante || '';
+        const unidade = event.extendedProps?.unidade || 'Não informado';
+        const status = event.extendedProps?.status || 'Não informado';
+        const criadoPor = event.extendedProps?.criadoPor || "";
+
+        const icone = iconesTipo[tipo] || '📌';
+        const statusExibido = tipo === 'Cancelado' ? 'Cancelado' : status;
+        const classeBadge = tipo === 'Cancelado' ? 'badge-cancelado' : (classesStatus[status] || 'badge-aguardando');
+        const canceladoPor = event.extendedProps?.canceladoPor || '';
+        const motivoFalta = event.extendedProps?.motivoFalta || '';
+        const qtdParticipantes = event.extendedProps?.qtdParticipantes;
+
+        const dataObj = event.start instanceof Date ? event.start : new Date(event.start);
+        const dataFormatada = dataObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const horaFormatada = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        // Monta HTML com valores escapados
+        conteudo.innerHTML = `
+            <div class="detalhe-cabecalho">
+                <div class="detalhe-icone-tipo">${escapeHTML(icone)}</div>
+                <div>
+                    <h3 class="detalhe-titulo">${escapeHTML(event.title)}</h3>
+                    <span class="detalhe-badge ${escapeHTML(classeBadge)}">${escapeHTML(statusExibido)}</span>
+                </div>
             </div>
 
-            <div class="login-titulo-linha">
-                <h1>Agenda Flow</h1>
-                <span class="login-versao">v2.1</span>
-            </div>
-            <p class="login-subtitulo">Sistema de Agendamento Corporativo</p>
-
-            <span class="login-divisor"></span>
-
-            <p class="login-intro">Faça login para acessar sua agenda.</p>
-
-            <div class="campo-login">
-                <span class="campo-icone">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/>
-                        <path d="M5 20c0-3.6 3.13-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                </span>
-                <input id="usuario" placeholder="Usuário" autocomplete="username">
-            </div>
-
-            <div class="campo-login">
-                <span class="campo-icone">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="5" y="10.5" width="14" height="9.5" rx="2" stroke="currentColor" stroke-width="1.8"/>
-                        <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                    </svg>
-                </span>
-                <input id="senha" type="password" placeholder="Senha" autocomplete="current-password">
-                <button type="button" id="btnVerSenha" class="campo-icone-direita" aria-label="Mostrar senha">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" stroke="currentColor" stroke-width="1.7"/>
-                        <circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/>
-                    </svg>
-                </button>
+            <div class="detalhe-grid">
+                <div class="detalhe-item">
+                    <span class="detalhe-label">📅 Data</span>
+                    <span class="detalhe-valor">${escapeHTML(dataFormatada)}</span>
+                </div>
+                <div class="detalhe-item">
+                    <span class="detalhe-label">🕒 Hora</span>
+                    <span class="detalhe-valor">${escapeHTML(horaFormatada)}</span>
+                </div>
+                <div class="detalhe-item">
+                    <span class="detalhe-label">🏷️ Categoria</span>
+                    <span class="detalhe-valor">${escapeHTML(tipo)}</span>
+                </div>
+                <div class="detalhe-item">
+                    <span class="detalhe-label">🏥 Unidade</span>
+                    <span class="detalhe-valor">${escapeHTML(unidade)}</span>
+                </div>
+                ${tipo === 'Treinamento' && qtdParticipantes !== null && qtdParticipantes !== undefined ? `
+                <div class="detalhe-item">
+                    <span class="detalhe-label">👥 Participantes</span>
+                    <span class="detalhe-valor">${escapeHTML(String(qtdParticipantes))}</span>
+                </div>` : ''}
             </div>
 
-            <div class="login-opcoes">
-                <label class="opcao-lembrar">
-                    <input type="checkbox" id="lembrarMe">
-                    <span>Lembrar-me</span>
-                </label>
-                <a href="#" class="link-esqueceu">Esqueceu sua senha?</a>
+            <div class="detalhe-secao">
+                <div class="detalhe-secao-titulo">👤 Responsáveis</div>
+                <div class="detalhe-item-linha">
+                    <span class="detalhe-label">Agente (Vivver)</span>
+                    <span class="detalhe-valor linha-com-avatar">${avatarIniciaisHTML(agente)} ${escapeHTML(agente)}</span>
+                </div>
+                <div class="detalhe-item-linha">
+                    <span class="detalhe-label">Solicitado por</span>
+                    <span class="detalhe-valor">${escapeHTML(solicitante)}${cargoSolicitante ? ' <span class="detalhe-cargo">(' + escapeHTML(cargoSolicitante) + ')</span>' : ''}</span>
+                </div>
+                ${criadoPor ? `
+                <div class="detalhe-item-linha">
+                    <span class="detalhe-label">Criado por</span>
+                    <span class="detalhe-valor linha-com-avatar">${avatarIniciaisHTML(criadoPor)} ${escapeHTML(criadoPor)}</span>
+                </div>` : ''}
+                ${tipo === 'Cancelado' && canceladoPor ? `
+                <div class="detalhe-item-linha">
+                    <span class="detalhe-label">❌ Cancelado por</span>
+                    <span class="detalhe-valor linha-com-avatar">${avatarIniciaisHTML(canceladoPor)} ${escapeHTML(canceladoPor)}</span>
+                </div>` : ''}
             </div>
 
-            <button id="btnLogin" type="button">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 5l6 7-6 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M3 12h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-                </svg>
-                Entrar no Sistema
-            </button>
+            ${status === 'Não Compareceu' && motivoFalta ? `
+            <div class="detalhe-secao">
+                <div class="detalhe-secao-titulo">🔴 Motivo da Falta</div>
+                <p class="detalhe-obs detalhe-obs-falta">${escapeHTML(motivoFalta)}</p>
+            </div>` : ''}
 
-            <p id="erroLogin"></p>
-
-            <div class="login-separador">
-                <span></span>
-                <p>
-                    Acesso restrito
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                        <path d="M9.5 12l1.8 1.8L14.5 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </p>
-                <span></span>
+            <div class="detalhe-secao">
+                <div class="detalhe-secao-titulo">📝 Notas de Campo</div>
+                <p class="detalhe-obs">${escapeHTML(desc)}</p>
             </div>
+        `;
+        modalDetalhes.style.display = 'flex';
+    }
 
-            <div class="login-rodape">
-                <p>© 2026 Agenda Flow. Todos os direitos reservados.</p>
-                <p>Desenvolvido por <strong>Thales Systems</strong></p>
-            </div>
-        </div>
-    </div>
+    if (btnFecharDetalhes) btnFecharDetalhes.addEventListener('click', () => { if (modalDetalhes) modalDetalhes.style.display = 'none'; });
+    if (btnFecharCadastro) btnFecharCadastro.addEventListener('click', () => { if (modalCadastro) modalCadastro.style.display = 'none'; });
 
-    <script>
-        // Alterna a visibilidade da senha na tela de login
-        (function () {
-            var btnVer = document.getElementById('btnVerSenha');
-            var campoSenha = document.getElementById('senha');
-            if (btnVer && campoSenha) {
-                btnVer.addEventListener('click', function () {
-                    var visivel = campoSenha.type === 'text';
-                    campoSenha.type = visivel ? 'password' : 'text';
-                    btnVer.classList.toggle('ativo', !visivel);
+    window.addEventListener('click', function(e) {
+        if (e.target === modalDetalhes && modalDetalhes) modalDetalhes.style.display = 'none';
+        if (e.target === modalCadastro && modalCadastro) modalCadastro.style.display = 'none';
+    });
+
+    // =========================================================================
+    // CONTEXT MENU
+    // =========================================================================
+    if (calendarEl && menuContexto) {
+        calendarEl.addEventListener('contextmenu', function(e) {
+            if (somenteVisualizacao) { e.preventDefault(); return; }
+
+            const blocoEventoVisual = e.target.closest('[data-event-id]');
+            if (blocoEventoVisual) {
+                e.preventDefault();
+                if (calendar) eventoSelecionadoParaMenu = calendar.getEventById(blocoEventoVisual.dataset.eventId);
+                menuContexto.style.left = e.clientX + 'px';
+                menuContexto.style.top = e.clientY + 'px';
+                menuContexto.style.display = 'flex';
+            }
+        });
+
+        document.addEventListener('click', () => { if (menuContexto) menuContexto.style.display = 'none'; });
+    }
+
+    // Botões do menu — só se existirem
+    const btnEditarCompromisso = document.getElementById('btnEditarCompromisso');
+    if (btnEditarCompromisso) {
+        btnEditarCompromisso.addEventListener('click', function() {
+            if (eventoSelecionadoParaMenu) {
+                nomeEditorAtual = usuarioLogado ? usuarioLogado.usuario : '';
+                abrirModalCadastro(true, eventoSelecionadoParaMenu);
+            }
+        });
+    }
+
+    const btnDuplicarCompromisso = document.getElementById('btnDuplicarCompromisso');
+    if (btnDuplicarCompromisso) {
+        btnDuplicarCompromisso.addEventListener('click', async function() {
+            if (eventoSelecionadoParaMenu) {
+                const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+                if (origem) {
+                    const copiaClonada = {
+                        ...origem,
+                        id: gerarId()
+                    };
+
+                    const { error } = await supabaseClient
+                        .from('compromissos')
+                        .insert(compromissoParaLinha(copiaClonada));
+
+                    if (error) {
+                        mostrarToast('Erro ao duplicar: ' + (error.message || error), 'erro');
+                        return;
+                    }
+                    await carregarCompromissos();
+                }
+            }
+        });
+    }
+
+    const btnConcluirCompromisso = document.getElementById('btnConcluirCompromisso');
+    if (btnConcluirCompromisso) {
+        btnConcluirCompromisso.addEventListener('click', async function() {
+            if (!eventoSelecionadoParaMenu) return;
+            const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+            if (!origem) return;
+            if (origem.tipo === 'Cancelado') {
+                mostrarToast('Não é possível concluir um compromisso já cancelado.', 'aviso');
+                return;
+            }
+            if (!confirm(`Marcar "${origem.title}" como Realizado?`)) return;
+
+            const { error } = await supabaseClient
+                .from('compromissos')
+                .update({ status: 'Realizado' })
+                .eq('id', eventoSelecionadoParaMenu.id);
+
+            if (error) {
+                mostrarToast('Erro ao concluir: ' + (error.message || error), 'erro');
+                return;
+            }
+            await carregarCompromissos();
+        });
+    }
+
+    const btnCancelarCompromisso = document.getElementById('btnCancelarCompromisso');
+    if (btnCancelarCompromisso) {
+        btnCancelarCompromisso.addEventListener('click', async function() {
+            if (eventoSelecionadoParaMenu) {
+                const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+                if (!origem) return;
+                if (!confirm(`Cancelar o compromisso "${origem.title}"?`)) return;
+
+                const tituloLimpo = origem.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
+
+                const { error } = await supabaseClient
+                    .from('compromissos')
+                    .update({
+                        tipo: 'Cancelado',
+                        classname: 'evento-cancelado',
+                        title: tituloLimpo,
+                        cancelado_por: usuarioLogado ? usuarioLogado.usuario : ''
+                    })
+                    .eq('id', eventoSelecionadoParaMenu.id);
+
+                if (error) {
+                    mostrarToast('Erro ao cancelar: ' + (error.message || error), 'erro');
+                    return;
+                }
+                await carregarCompromissos();
+            }
+        });
+    }
+
+    const btnApagar = document.getElementById('btnApagar');
+    if (btnApagar) {
+        btnApagar.addEventListener('click', async function() {
+            if (!isAdmin) return;
+            if (!eventoSelecionadoParaMenu) return;
+
+            const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+            const nomeEvento = origem ? origem.title : 'este compromisso';
+
+            if (!confirm(`🗑️ Apagar "${nomeEvento}"? Você terá alguns segundos para desfazer logo em seguida.`)) return;
+
+            const { error } = await supabaseClient
+                .from('compromissos')
+                .delete()
+                .eq('id', eventoSelecionadoParaMenu.id);
+
+            if (error) {
+                mostrarToast('Erro ao apagar: ' + (error.message || error), 'erro');
+                return;
+            }
+            await carregarCompromissos();
+
+            if (origem) {
+                mostrarToastAcao(`"${nomeEvento}" foi apagado.`, 'Desfazer', async function() {
+                    const { error: erroDesfazer } = await supabaseClient
+                        .from('compromissos')
+                        .insert([compromissoParaLinha(origem)]);
+
+                    if (erroDesfazer) {
+                        mostrarToast('Não foi possível desfazer: ' + (erroDesfazer.message || erroDesfazer), 'erro');
+                        return;
+                    }
+                    await carregarCompromissos();
+                    mostrarToast('Compromisso restaurado.', 'sucesso');
                 });
             }
-        })();
-    </script>
+        });
+    }
 
-    <main id="sistema" style="display:none;">    
-        <header class="topo">
-            <h1>Agenda da Semana</h1>
-            <div class="topo-acoes">
-                <button id="btnAdmin" title="Administração" style="display:none;">⚙️ Administração</button>
-                <button id="btnLogout" title="Sair">🚪 Sair</button>
-            </div>
-        </header>
+    // =========================================================================
+    // FILTROS E BUSCA
+    // =========================================================================
+    let filtroTipoAtual = 'Todos';
+    let termoBuscaAtual = '';
 
-        <!-- ÁREA DO CALENDÁRIO E FILTROS -->
-        <section class="agenda">
-            <div class="busca">
-                <input type="text" placeholder="Pesquisar compromisso...">
-            </div>
-            <div class="filtros">
-                <button class="filtro ativo">Todos</button>
-                <button class="filtro">Treinamento</button>
-                <button class="filtro">Visita</button>
-                <button class="filtro">Demanda</button>
-                <button class="filtro">Cancelamento</button>
+    function aplicarFiltrosCombinados() {
+        let resultado = compromissos;
 
-                <div class="legenda-cores">
-                    <span><i class="bolinha-legenda" style="background:#2563eb;"></i>Treinamento</span>
-                    <span><i class="bolinha-legenda" style="background:#f59e0b;"></i>Visita / Não Compareceu</span>
-                    <span><i class="bolinha-legenda" style="background:#8b5cf6;"></i>Demanda</span>
-                    <span><i class="bolinha-legenda" style="background:#22c55e;"></i>Concluído</span>
-                    <span><i class="bolinha-legenda" style="background:#ef4444;"></i>Cancelado</span>
-                </div>
-            </div>
-            <!-- Container do FullCalendar -->
-            <div id="calendar"></div>
-        </section>
+        if (filtroTipoAtual === 'Cancelamento') {
+            resultado = resultado.filter(c => c.tipo === 'Cancelado' || c.tipo === 'Cancelamento');
+        } else if (filtroTipoAtual !== 'Todos') {
+            resultado = resultado.filter(c => c.tipo === filtroTipoAtual);
+        }
 
-        <!-- CARDS DE RESUMO (5 COLUNAS) -->
-        <section class="cards">
-            <div class="card treinamento">
-                <div class="card-topo">
-                    <span class="card-icone">🎓</span>
-                    <h2>Treinamentos</h2>
-                </div>
-                <span class="card-numero" id="cardTreinamentos">0</span>
-            </div>
-            <div class="card visita">
-                <div class="card-topo">
-                    <span class="card-icone">🚗</span>
-                    <h2>Visitas</h2>
-                </div>
-                <span class="card-numero" id="cardVisitas">0</span>
-            </div>
-            <div class="card demanda">
-                <div class="card-topo">
-                    <span class="card-icone">📋</span>
-                    <h2>Demandas</h2>
-                </div>
-                <span class="card-numero" id="cardDemandas">0</span>
-            </div>
-            <div class="card cancelar">
-                <div class="card-topo">
-                    <span class="card-icone">❌</span>
-                    <h2>Cancelados</h2>
-                </div>
-                <span class="card-numero" id="cardCancelados">0</span>
-            </div>
-            <!-- Card de Relatório Clicável -->
-            <div id="btnRelatorio" class="card relatorio-card" style="cursor: pointer;">
-                <div class="card-topo">
-                    <span class="card-icone">📊</span>
-                    <h2>Relatório</h2>
-                </div>
-                <span class="card-numero card-numero-texto">Gerar Mensal</span>
-            </div>
-        </section>
+        if (termoBuscaAtual) {
+            resultado = resultado.filter(c => (c.title || '').toLowerCase().includes(termoBuscaAtual));
+        }
 
-        <!-- RODAPÉ (PRÓXIMOS E RESUMO) -->
-        <div class="rodape">
-            <div class="proximos">
-                <h2>📅 Próximos Compromissos da Semana</h2>
-                <div id="listaProximos"></div>
-            </div>
-            <div class="resumo">
-                <h2>💡 Resumo Operacional</h2>
-                <div id="conteudoResumo"></div>
-            </div>
-        </div>
-    </main>
+        if (calendar) {
+            calendar.removeAllEvents();
+            calendar.addEventSource(resultado);
+        }
+    }
 
-    <!-- MODAL DE CADASTRO/EDIÇÃO DE COMPROMISSO -->
-    <div id="modalCadastro" class="modal">
-        <div class="modal-content">
-            <span class="fechar-cadastro">&times;</span>
-            <h2 id="tituloModalCadastro">Novo Compromisso</h2>
-            <form id="formCadastroEvento">
-                <div class="form-group">
-                    <label for="txtTitulo">Título</label>
-                    <input type="text" id="txtTitulo" required placeholder="Ex: Visita técnica - ESF Centro">
-                </div>
+    if (inputBusca) {
+        let debounceTimer = null;
+        inputBusca.addEventListener('input', function(e) {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                termoBuscaAtual = (e.target.value || '').toLowerCase();
+                aplicarFiltrosCombinados();
+            }, 150);
+        });
+    }
 
-                <div class="form-group">
-                    <label for="txtAgente">Agente (Vivver)</label>
-                    <input type="text" id="txtAgente" required readonly placeholder="Nome do agente que está marcando">
-                </div>
+    botoesFiltro.forEach(botao => {
+        botao.addEventListener('click', function() {
+            botoesFiltro.forEach(b => b.classList.remove('ativo'));
+            this.classList.add('ativo');
+            filtroTipoAtual = this.innerText.trim();
+            aplicarFiltrosCombinados();
+        });
+    });
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="txtSolicitante">Solicitado por</label>
-                        <input type="text" id="txtSolicitante" required placeholder="Nome de quem solicitou">
-                    </div>
-                    <div class="form-group">
-                        <label for="txtCargoSolicitante">Cargo do Solicitante</label>
-                        <input type="text" id="txtCargoSolicitante" required placeholder="Ex: Enfermeira, Coordenador...">
-                    </div>
-                </div>
+    // =========================================================================
+    // RELATÓRIO / IMPRESSÃO
+    // =========================================================================
+    const modalRelatorio = document.getElementById('modalRelatorio');
+    const btnFecharRelatorio = document.getElementById('btnFecharRelatorio');
+    const btnApenasFecharRelatorio = document.getElementById('btnApenasFecharRelatorio');
+    const btnImprimirDoRelatorio = document.getElementById('btnImprimirDoRelatorio');
+    const btnRelatorio = document.getElementById('btnRelatorio');
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="selUnidade">Unidade de Saúde</label>
-                        <select id="selUnidade" required>
-                            <!-- Preenchido dinamicamente pelo script.js (objeto "municipios") -->
-                        </select>
-                    </div>
-                    <div class="form-group form-group-tipo">
-                        <label for="selTipo">Tipo</label>
-                        <select id="selTipo" required>
-                            <option value="Treinamento">🎓 Treinamento</option>
-                            <option value="Visita">🚗 Visita</option>
-                            <option value="Demanda">📋 Demanda</option>
-                            <option value="Cancelado" hidden>❌ Cancelado</option>
-                        </select>
-                    </div>
-                </div>
+    if (btnRelatorio) {
+        btnRelatorio.addEventListener('click', function() {
+            const listaAtividadesRelatorio = document.getElementById('listaAtividadesRelatorio');
+            const dataRelatorio = document.getElementById('dataRelatorio');
+            const compromissosDoMes = compromissosDoMesExibido();
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="txtData">Data</label>
-                        <input type="date" id="txtData" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="txtHoraInicio">Hora</label>
-                        <input type="time" id="txtHoraInicio" required>
-                    </div>
-                    <div class="form-group form-group-status">
-                        <label for="selStatus">Status</label>
-                        <select id="selStatus" required>
-                            <option value="Aguardando Confirmação">🟡 Aguardando</option>
-                            <option value="Confirmado">🟢 Confirmado</option>
-                            <option value="Realizado">✅ Realizado</option>
-                            <option value="Remarcado">🔵 Remarcado</option>
-                            <option value="Não Compareceu">🔴 Faltou</option>
-                        </select>
-                    </div>
-                </div>
+            if (dataRelatorio) {
+                dataRelatorio.innerText = `Referente a ${nomeDoMesExibido()} — gerado em ${new Date().toLocaleString('pt-BR')}`;
+            }
 
-                <div class="form-group" id="grupoParticipantes" style="display:none;">
-                    <label for="txtQtdParticipantes">👥 Quantos participantes compareceram?</label>
-                    <input type="number" id="txtQtdParticipantes" min="0" placeholder="Ex: 12">
-                </div>
+            const cardTre = document.getElementById('cardTreinamentos');
+            const cardVis = document.getElementById('cardVisitas');
+            const cardDem = document.getElementById('cardDemandas');
+            const cardCan = document.getElementById('cardCancelados');
 
-                <div class="form-group" id="grupoMotivoFalta" style="display:none;">
-                    <label for="txtMotivoFalta">🔴 Motivo da Falta</label>
-                    <textarea id="txtMotivoFalta" rows="2" placeholder="Explique por que a pessoa não compareceu..."></textarea>
-                </div>
+            if (document.getElementById('repTreinamentos') && cardTre) document.getElementById('repTreinamentos').innerText = cardTre.innerText;
+            if (document.getElementById('repVisitas') && cardVis) document.getElementById('repVisitas').innerText = cardVis.innerText;
+            if (document.getElementById('repDemandas') && cardDem) document.getElementById('repDemandas').innerText = cardDem.innerText;
+            if (document.getElementById('repCancelados') && cardCan) document.getElementById('repCancelados').innerText = cardCan.innerText;
 
-                <div class="form-group">
-                    <label for="txtDescricao">Descrição</label>
-                    <textarea id="txtDescricao" rows="2" required placeholder="Observações adicionais..."></textarea>
-                </div>
+            const totalParticipantes = compromissosDoMes.reduce((soma, c) => soma + (Number(c.qtdParticipantes) || 0), 0);
+            const repParticipantesEl = document.getElementById('repParticipantes');
+            if (repParticipantesEl) repParticipantesEl.innerText = totalParticipantes;
 
-                <div class="form-actions">
-                    <button type="submit" class="btn-salvar">💾 Salvar Compromisso</button>
-                </div>
-            </form>
-        </div>
-    </div>
+            if (listaAtividadesRelatorio) {
+                listaAtividadesRelatorio.innerHTML = '';
 
-    <!-- MODAL DE DETALHES (Onde o 'X' deve funcionar) -->
-    <div id="modalDetalhes" class="modal">
-        <div class="modal-content">
-            <!-- Botão Fechar (X) -->
-            <span class="fechar-detalhes">&times;</span>
-            <p class="detalhe-eyebrow">DETALHES DO COMPROMISSO</p>
-            <div id="conteudoDetalhes">
-                <!-- Conteúdo preenchido pelo JS -->
-            </div>
-        </div>
-    </div>
+                if (compromissosDoMes.length === 0) {
+                    listaAtividadesRelatorio.innerHTML = '<p style="color:#64748b; font-size:13px; text-align:center;">Nenhum compromisso neste mês.</p>';
+                } else {
+                    compromissosDoMes
+                        .slice()
+                        .sort((a, b) => new Date(a.start) - new Date(b.start))
+                        .forEach(comp => {
+                            const dataComp = new Date(comp.start).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+                            const infoParticipantes = (comp.tipo === 'Treinamento' && comp.qtdParticipantes !== null && comp.qtdParticipantes !== undefined)
+                                ? ` | 👥 ${escapeHTML(String(comp.qtdParticipantes))} participante(s)`
+                                : '';
+                            const itemHtml = `
+                                <div style="padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px;">
+                                    <strong style="color:#1e293b;">${escapeHTML(comp.title)}</strong><br>
+                                    <span style="color:#64748b;">📅 ${escapeHTML(dataComp)} | Tipo: ${escapeHTML(comp.tipo)}${infoParticipantes}</span>
+                                </div>
+                            `;
+                            listaAtividadesRelatorio.innerHTML += itemHtml;
+                        });
+                }
+            }
 
-    <!-- MENU DE CONTEXTO (Botão Direito) -->
-    <div class="menu-evento" style="display: none; position: fixed; z-index: 1100;">
-        <button id="btnEditarCompromisso">✏️ Editar</button>
-        <button id="btnDuplicarCompromisso">📄 Duplicar</button>
-        <button id="btnConcluirCompromisso" style="color: #059669;">✅ Concluir</button>
-        <button id="btnCancelarCompromisso" style="color: #f59e0b;">❌ Cancelar</button>
-        <hr id="divisorApagar" style="border: 0; border-top: 1px solid #e2e8f0; margin: 0;">
-        <button id="btnApagar" style="color: #ef4444;">🗑️ Apagar</button>
-    </div>
+            if (modalRelatorio) modalRelatorio.style.display = 'flex';
+        });
+    }
 
-    <!-- Scripts do FullCalendar e Local -->
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js'></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales/pt-br.global.min.js'></script>
-    <!-- Cliente do Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="script.js"></script>
+    if (btnImprimirDoRelatorio) {
+        btnImprimirDoRelatorio.addEventListener('click', function() {
+            const impressaoArea = document.getElementById('impressaoArea');
+            const conteudoImpressao = impressaoArea ? impressaoArea.innerHTML : '';
+            const janelaImpressao = window.open('', '_blank', 'width=800,height=600');
+            if (!janelaImpressao || !janelaImpressao.document) {
+                mostrarToast('Não foi possível abrir janela de impressão (popup bloqueado).', 'aviso');
+                return;
+            }
+            janelaImpressao.document.write(`
+                <html>
+                <head>
+                    <title>Impressão de Relatório</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 20px; color: #334155; }
+                        h2 { color: #1e3a8a; }
+                        div { margin-bottom: 15px; }
+                    </style>
+                </head>
+                <body>
+                    ${conteudoImpressao}
+                    <script>
+                        window.onload = function() { window.print(); window.close(); }
+                    </script>
+                </body>
+                </html>
+            `);
+            janelaImpressao.document.close();
+        });
+    }
 
+    if (btnFecharRelatorio) btnFecharRelatorio.addEventListener('click', () => { if (modalRelatorio) modalRelatorio.style.display = 'none'; });
+    if (btnApenasFecharRelatorio) btnApenasFecharRelatorio.addEventListener('click', () => { if (modalRelatorio) modalRelatorio.style.display = 'none'; });
 
-    <!-- MODAL DE RELATÓRIO MENSAL -->
-    <div id="modalRelatorio" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 600px; width: 90%;">
-            <span class="fechar-relatorio" id="btnFecharRelatorio" style="position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;">&times;</span>
-            
-            <div id="impressaoArea">
-                <h2 style="margin-bottom: 5px; color: #1e3a8a;">📊 Relatório Operacional Mensal</h2>
-                <p id="dataRelatorio" style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Gerado em: --/--/----</p>
-                
-                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px;">
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🎓 Treinamentos</span><strong id="repTreinamentos" style="display:block; font-size: 18px; color: #2563eb;">0</strong></div>
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🚗 Visitas</span><strong id="repVisitas" style="display:block; font-size: 18px; color: #f59e0b;">0</strong></div>
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">📋 Demandas</span><strong id="repDemandas" style="display:block; font-size: 18px; color: #8b5cf6;">0</strong></div>
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">❌ Cancelados</span><strong id="repCancelados" style="display:block; font-size: 18px; color: #ef4444;">0</strong></div>
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">👥 Participantes</span><strong id="repParticipantes" style="display:block; font-size: 18px; color: #059669;">0</strong></div>
-                </div>
+    // Logout
+    const btnLogout = document.getElementById("btnLogout");
+    if (btnLogout) {
+        btnLogout.addEventListener("click", function() {
+            localStorage.removeItem("usuarioLogado");
+            location.reload();
+        });
+    }
 
-                <h3 style="font-size: 14px; color: #334155; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">Lista de Atividades do Mês</h3>
-                <div id="listaAtividadesRelatorio" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;">
-                    <!-- Preenchido dinamicamente pelo JS -->
-                </div>
-            </div>
+    // =========================================================================
+    // ADMIN
+    // =========================================================================
+    const btnAdmin = document.getElementById("btnAdmin");
+    const modalAdmin = document.getElementById("modalAdmin");
+    const fecharAdmin = document.querySelector(".fechar-admin");
+    const formUsuarioAdmin = document.getElementById("formUsuarioAdmin");
+    habilitarEnterParaSalvar(formUsuarioAdmin);
+    const txtNovoUsuario = document.getElementById("txtNovoUsuario");
+    const txtNovaSenha = document.getElementById("txtNovaSenha");
+    const selNovoRole = document.getElementById("selNovoRole");
+    const usuarioOriginalEdicao = document.getElementById("usuarioOriginalEdicao");
+    const btnSalvarUsuarioAdmin = document.getElementById("btnSalvarUsuarioAdmin");
+    const btnCancelarEdicaoUsuario = document.getElementById("btnCancelarEdicaoUsuario");
+    const listaUsuariosAdmin = document.getElementById("listaUsuariosAdmin");
 
-            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
-                <button id="btnApenasFecharRelatorio" style="padding: 10px 20px; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; font-weight: 600;">Fechar</button>
-                <button id="btnImprimirDoRelatorio" style="padding: 10px 20px; border: none; border-radius: 8px; background: #0284c7; color: white; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;">🖨️ Imprimir Relatório</button>
-            </div>
-        </div>
-    </div>
-    <!-- MODAL DE ADMINISTRAÇÃO (SOMENTE ADMIN) -->
-    <div id="modalAdmin" class="modal">
-        <div class="modal-content" style="max-width: 520px;">
-            <span class="fechar-admin">&times;</span>
-            <h2>⚙️ Administração</h2>
-            <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">Gerencie quem tem acesso ao sistema e o que cada um pode fazer.</p>
+    const rotulosRole = { admin: "Admin", usuario: "Usuário", visualizador: "Visualização" };
 
-            <form id="formUsuarioAdmin">
-                <input type="hidden" id="usuarioOriginalEdicao" value="">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="txtNovoUsuario">Usuário</label>
-                        <input type="text" id="txtNovoUsuario" required placeholder="Nome de login">
-                    </div>
-                    <div class="form-group">
-                        <label for="txtNovaSenha">Senha</label>
-                        <input type="password" id="txtNovaSenha" required autocomplete="new-password" placeholder="Senha de acesso">
-                        <small id="dicaSenhaAdmin" style="color:#94a3b8; font-size:11px;"></small>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="selNovoRole">Permissão</label>
-                    <select id="selNovoRole" required>
-                        <option value="usuario">🙋 Usuário (cria e edita compromissos)</option>
-                        <option value="admin">👑 Admin (acesso total + administração)</option>
-                        <option value="visualizador">👁️ Visualização (só vê calendário e relatório)</option>
-                    </select>
-                </div>
-                <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end;">
-                    <button type="button" id="btnCancelarEdicaoUsuario" style="display:none; background:#e2e8f0; border:none; padding:10px 18px; border-radius:10px; font-weight:600; cursor:pointer;">Cancelar edição</button>
-                    <button type="submit" class="btn-salvar" id="btnSalvarUsuarioAdmin">➕ Adicionar Usuário</button>
-                </div>
-            </form>
+    if (isAdmin && btnAdmin) btnAdmin.style.display = "inline-block";
 
-            <h3 style="font-size:14px; color:#334155; margin:22px 0 10px; border-bottom:2px solid #e2e8f0; padding-bottom:6px;">Usuários Cadastrados</h3>
-            <div id="listaUsuariosAdmin" style="max-height: 260px; overflow-y: auto;"></div>
-        </div>
-    </div>
-    <!-- CONTAINER DE NOTIFICAÇÕES (TOASTS) -->
-    <div id="toastContainer" class="toast-container"></div>
+    async function pegarUsuarios() {
+        const { data, error } = await supabaseClient.from('usuarios').select('usuario, role').order('usuario');
+        if (error) {
+            mostrarToast('Erro ao carregar usuários: ' + (error.message || error), 'erro');
+            return [];
+        }
+        return data || [];
+    }
 
-</body>
-</html>
+    function resetarFormularioUsuario() {
+        if (formUsuarioAdmin) formUsuarioAdmin.reset();
+        if (usuarioOriginalEdicao) usuarioOriginalEdicao.value = "";
+        if (txtNovoUsuario) txtNovoUsuario.disabled = false;
+        if (txtNovaSenha) txtNovaSenha.required = true;
+        const dicaSenha = document.getElementById("dicaSenhaAdmin");
+        if (dicaSenha) dicaSenha.innerText = "";
+        if (btnSalvarUsuarioAdmin) btnSalvarUsuarioAdmin.innerHTML = "➕ Adicionar Usuário";
+        if (btnCancelarEdicaoUsuario) btnCancelarEdicaoUsuario.style.display = "none";
+    }
+
+    async function renderizarListaUsuarios() {
+        if (!listaUsuariosAdmin) return;
+        const lista = await pegarUsuarios();
+        listaUsuariosAdmin.innerHTML = "";
+
+        lista.forEach(u => {
+            const div = document.createElement("div");
+            div.className = "item-usuario-admin";
+            div.innerHTML = `
+                <span class="nome-usuario-admin">${escapeHTML(u.usuario)}<span class="badge-role badge-role-${escapeHTML(u.role)}">${escapeHTML(rotulosRole[u.role] || u.role)}</span></span>
+                <span class="acoes-usuario-admin">
+                    <button class="btn-editar-usuario">✏️ Editar</button>
+                    <button class="btn-apagar-usuario">🗑️ Apagar</button>
+                </span>
+            `;
+
+            const btnEditar = div.querySelector(".btn-editar-usuario");
+            if (btnEditar) {
+                btnEditar.addEventListener("click", function() {
+                    if (txtNovoUsuario) txtNovoUsuario.value = u.usuario;
+                    if (txtNovoUsuario) txtNovoUsuario.disabled = true;
+                    if (txtNovaSenha) txtNovaSenha.value = "";
+                    if (txtNovaSenha) txtNovaSenha.required = false;
+                    const dicaSenha = document.getElementById("dicaSenhaAdmin");
+                    if (dicaSenha) dicaSenha.innerText = "Deixe em branco para manter a senha atual.";
+                    if (selNovoRole) selNovoRole.value = u.role;
+                    if (usuarioOriginalEdicao) usuarioOriginalEdicao.value = u.usuario;
+                    if (btnSalvarUsuarioAdmin) btnSalvarUsuarioAdmin.innerHTML = "💾 Salvar Alterações";
+                    if (btnCancelarEdicaoUsuario) btnCancelarEdicaoUsuario.style.display = "inline-block";
+                    if (formUsuarioAdmin) formUsuarioAdmin.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+            }
+
+            const btnApagarUsuario = div.querySelector(".btn-apagar-usuario");
+            if (btnApagarUsuario) {
+                btnApagarUsuario.addEventListener("click", async function() {
+                    if (usuarioLogado && usuarioLogado.usuario === u.usuario) {
+                        mostrarToast('Você não pode apagar o usuário com o qual está logado.', 'aviso');
+                        return;
+                    }
+                    const totalAdmins = lista.filter(x => x.role === "admin").length;
+                    if (u.role === "admin" && totalAdmins <= 1) {
+                        mostrarToast('Não é possível apagar o último Admin do sistema.', 'aviso');
+                        return;
+                    }
+                    if (confirm(`Tem certeza que deseja apagar o usuário "${u.usuario}"?`)) {
+                        const { error } = await supabaseClient.from('usuarios').delete().eq('usuario', u.usuario);
+                        if (error) {
+                            mostrarToast('Erro ao apagar usuário: ' + (error.message || error), 'erro');
+                            return;
+                        }
+                        renderizarListaUsuarios();
+                    }
+                });
+            }
+
+            listaUsuariosAdmin.appendChild(div);
+        });
+    }
+
+    if (btnAdmin) {
+        btnAdmin.addEventListener("click", function() {
+            resetarFormularioUsuario();
+            renderizarListaUsuarios();
+            if (modalAdmin) modalAdmin.style.display = "flex";
+        });
+    }
+
+    if (fecharAdmin) {
+        fecharAdmin.addEventListener("click", () => { if (modalAdmin) modalAdmin.style.display = 'none'; });
+    }
+
+    if (btnCancelarEdicaoUsuario) {
+        btnCancelarEdicaoUsuario.addEventListener("click", resetarFormularioUsuario);
+    }
+
+    if (formUsuarioAdmin) {
+        formUsuarioAdmin.addEventListener("submit", async function(e) {
+            e.preventDefault();
+
+            const nomeDigitado = txtNovoUsuario ? txtNovoUsuario.value.trim() : '';
+            const senhaDigitada = txtNovaSenha ? txtNovaSenha.value.trim() : '';
+            const roleEscolhida = selNovoRole ? selNovoRole.value : '';
+            const emEdicao = usuarioOriginalEdicao ? usuarioOriginalEdicao.value : '';
+
+            if (emEdicao) {
+                const { error } = await supabaseClient.rpc('editar_usuario', {
+                    p_usuario: emEdicao,
+                    p_senha: senhaDigitada,
+                    p_role: roleEscolhida
+                });
+
+                if (error) {
+                    mostrarToast('Erro ao salvar alterações do usuário: ' + (error.message || error), 'erro');
+                    return;
+                }
+
+                if (usuarioLogado && usuarioLogado.usuario === emEdicao) {
+                    usuarioLogado.role = roleEscolhida;
+                    localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
+                }
+            } else {
+                const { data: existente } = await supabaseClient
+                    .from('usuarios')
+                    .select('usuario')
+                    .ilike('usuario', nomeDigitado)
+                    .maybeSingle();
+
+                if (existente) {
+                    mostrarToast('Já existe um usuário com esse nome de login.', 'aviso');
+                    return;
+                }
+
+                const { error } = await supabaseClient.rpc('criar_usuario', {
+                    p_usuario: nomeDigitado,
+                    p_senha: senhaDigitada,
+                    p_role: roleEscolhida
+                });
+
+                if (error) {
+                    mostrarToast('Erro ao criar usuário: ' + (error.message || error), 'erro');
+                    return;
+                }
+            }
+
+            resetarFormularioUsuario();
+            renderizarListaUsuarios();
+        });
+    }
+
+    // =========================================================================
+    // LOGIN (tentarLogin)
+    // =========================================================================
+    async function tentarLogin() {
+        const usuarioEl = document.getElementById("usuario");
+        const senhaEl = document.getElementById("senha");
+        const erroLoginEl = document.getElementById("erroLogin");
+
+        const usuario = usuarioEl ? usuarioEl.value : '';
+        const senha = senhaEl ? senhaEl.value : '';
+
+        if (erroLoginEl) erroLoginEl.innerHTML = "Entrando...";
+
+        const { data, error } = await supabaseClient.rpc('login_usuario', {
+            p_usuario: usuario,
+            p_senha: senha
+        });
+
+        if (error) {
+            if (erroLoginEl) erroLoginEl.innerHTML = "⚠️ Erro ao conectar com o Supabase: " + escapeHTML(error.message || String(error));
+            return;
+        }
+
+        const usuarioEncontrado = (Array.isArray(data) && data.length > 0) ? data[0] : (data || null);
+
+        if (usuarioEncontrado) {
+            localStorage.setItem("usuarioLogado", JSON.stringify(usuarioEncontrado));
+            location.reload();
+        } else {
+            if (erroLoginEl) erroLoginEl.innerHTML = "Usuário ou senha inválidos.";
+        }
+    }
+
+    const btnLoginEl = document.getElementById("btnLogin");
+    if (btnLoginEl) btnLoginEl.onclick = tentarLogin;
+
+    const campoUsuario = document.getElementById("usuario");
+    const campoSenha = document.getElementById("senha");
+    if (campoUsuario && campoSenha) {
+        campoUsuario.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                campoSenha.focus();
+            }
+        });
+
+        campoSenha.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                tentarLogin();
+            }
+        });
+    }
+
+    // =========================================================================
+    // ATALHOS DE TECLADO
+    // =========================================================================
+    document.addEventListener('keydown', function(e) {
+        const dentroDeCampo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
+
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal').forEach(m => { if (m.style.display !== 'none') m.style.display = 'none'; });
+            if (menuContexto) menuContexto.style.display = 'none';
+            return;
+        }
+
+        if ((e.key === 'n' || e.key === 'N') && !dentroDeCampo && usuarioLogado && !somenteVisualizacao) {
+            const algumModalAberto = Array.from(document.querySelectorAll('.modal')).some(m => m.style.display === 'flex');
+            if (!algumModalAberto) {
+                e.preventDefault();
+                dataSelecionadaClique = new Date().toISOString().split('T')[0];
+                abrirModalCadastro(false);
+            }
+        }
+    });
+
+    // =========================================================================
+    // PRIMEIRA CARGA E REALTIME
+    // =========================================================================
+    if (usuarioLogado) {
+        await carregarCompromissos();
+
+        let debounceRealtime = null;
+        supabaseClient
+            .channel('compromissos-mudancas')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'compromissos' }, () => {
+                clearTimeout(debounceRealtime);
+                debounceRealtime = setTimeout(carregarCompromissos, 300);
+            })
+            .subscribe();
+    }
+
+});
