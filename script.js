@@ -312,6 +312,8 @@ function habilitarEnterParaSalvar(form) {
             "CAPS Infantojuvenil",
             "Hospital Municipal de Governador Valadares",
             "Hospital Bom Samaritano",
+            "Universidade Vale do Rio Doce 1",
+            "Universidade Vale do Rio Doce 2",
         ]
     };
 
