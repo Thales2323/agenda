@@ -324,8 +324,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             "CAPS Infantojuvenil",
             "Hospital Municipal de Governador Valadares",
             "Hospital Bom Samaritano",
+            // UNIDADES ADICIONADAS
             "Universidade Vale do Rio Doce 1",
-            "Universidade Vale do Rio Doce 2",
+            "Universidade Vale do Rio Doce 2"
         ]
     };
 
@@ -1208,7 +1209,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         btnAdmin.addEventListener("click", function() {
             resetarFormularioUsuario();
             renderizarListaUsuarios();
-            if (modalAdmin) modalAdmin.style.display = "flex";
+            if (modalAdmin) modalAdmin.style.display = 'flex';
         });
     }
 
