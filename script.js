@@ -1,138 +1,159 @@
+// Ajustes: checagens de elementos, escapeHTML, mapping classname/className, uuid fallback, proteções diversas.
 document.addEventListener('DOMContentLoaded', async function() {
 
-// ==========================
-// CONEXÃO COM O SUPABASE
-// ==========================
-const SUPABASE_URL = 'https://pjzjlckhwjgdibhhlffj.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_5kP1SdaVUZTph0xdSgK-Ug_egN_B0T4';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// ==========================
-// LOGIN
-// ==========================
-// OBS: quem está logado no NAVEGADOR continua guardado no localStorage
-// (é só a sessão local desta aba/computador). Usuários e compromissos
-// agora vivem no Supabase, compartilhados entre todo mundo.
-let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
-
-// Mesmo com sessão salva no navegador, sempre revalida no Supabase
-// (garante que o usuário ainda existe e pega o "role" mais atual —
-// se a senha/usuário foi apagado ou alterado no banco, derruba a sessão local).
-if (usuarioLogado) {
-    const { data: usuarioAtual, error: erroRevalidacao } = await supabaseClient
-        .from('usuarios')
-        .select('usuario, role')
-        .eq('usuario', usuarioLogado.usuario)
-        .maybeSingle();
-
-    if (erroRevalidacao || !usuarioAtual) {
-        localStorage.removeItem("usuarioLogado");
-        usuarioLogado = null;
-    } else {
-        usuarioLogado = usuarioAtual;
-        localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
-    }
-}
-
-const somenteVisualizacao = !!(usuarioLogado && usuarioLogado.role === "visualizador");
-const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
-
-// =========================================================================
-// SISTEMA DE NOTIFICAÇÕES (TOASTS) — usado no lugar dos alert() de erro
-// =========================================================================
-const iconesToast = { erro: '⚠️', sucesso: '✅', aviso: '🚫' };
-
-function mostrarToast(mensagem, tipo = 'erro') {
-    const container = document.getElementById('toastContainer');
-    if (!container) { alert(mensagem); return; } // rede de segurança, caso o container não exista
-
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${tipo}`;
-    toast.innerHTML = `
-        <span class="toast-icone">${iconesToast[tipo] || 'ℹ️'}</span>
-        <span>${mensagem}</span>
-        <button class="toast-fechar" aria-label="Fechar">&times;</button>
-    `;
-
-    function remover() {
-        toast.classList.add('toast-saindo');
-        setTimeout(() => toast.remove(), 200);
+    // ==========================
+    // UTILITÁRIOS
+    // ==========================
+    function escapeHTML(str) {
+        return String(str || '').replace(/[&<>"']/g, function(m) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[m];
+        });
     }
 
-    toast.querySelector('.toast-fechar').addEventListener('click', remover);
-    container.appendChild(toast);
-    setTimeout(remover, 6000);
-}
-
-// Toast com um botão de ação extra (ex: "Desfazer"), some sozinho em 6s
-// se ninguém clicar — depois disso, a ação não pode mais ser desfeita.
-function mostrarToastAcao(mensagem, textoAcao, aoClicarAcao) {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = 'toast toast-aviso';
-    toast.innerHTML = `
-        <span class="toast-icone">🗑️</span>
-        <span>${mensagem}</span>
-        <button class="toast-acao">${textoAcao}</button>
-        <button class="toast-fechar" aria-label="Fechar">&times;</button>
-    `;
-
-    function remover() {
-        toast.classList.add('toast-saindo');
-        setTimeout(() => toast.remove(), 200);
-    }
-
-    const timeoutSumir = setTimeout(remover, 6000);
-
-    toast.querySelector('.toast-acao').addEventListener('click', function() {
-        clearTimeout(timeoutSumir);
-        remover();
-        aoClicarAcao();
-    });
-    toast.querySelector('.toast-fechar').addEventListener('click', function() {
-        clearTimeout(timeoutSumir);
-        remover();
-    });
-
-    container.appendChild(toast);
-}
-
-// Garante que apertar Enter salva o formulário (dispara o "submit"),
-// exceto dentro de <textarea>, onde o Enter deve continuar pulando linha.
-function habilitarEnterParaSalvar(form) {
-    if (!form) return;
-    form.addEventListener('keydown', function(e) {
-        if (e.key !== 'Enter') return;
-        if (e.target.tagName === 'TEXTAREA') return; // deixa quebrar linha normalmente
-        if (e.target.tagName === 'BUTTON') return; // já ativa o próprio botão
-
-        e.preventDefault();
-        if (typeof form.requestSubmit === 'function') {
-            form.requestSubmit();
-        } else {
-            form.dispatchEvent(new Event('submit', { cancelable: true }));
+    function gerarId() {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
         }
-    });
-}
+        return String(Date.now());
+    }
 
+    // ==========================
+    // CONEXÃO COM O SUPABASE
+    // ==========================
+    const SUPABASE_URL = 'https://pjzjlckhwjgdibhhlffj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_5kP1SdaVUZTph0xdSgK-Ug_egN_B0T4';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ==========================
+    // LOGIN
+    // ==========================
+    let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
+
+    if (usuarioLogado) {
+        try {
+            const { data: usuarioAtual, error: erroRevalidacao } = await supabaseClient
+                .from('usuarios')
+                .select('usuario, role')
+                .eq('usuario', usuarioLogado.usuario)
+                .maybeSingle();
+
+            if (erroRevalidacao || !usuarioAtual) {
+                localStorage.removeItem("usuarioLogado");
+                usuarioLogado = null;
+            } else {
+                usuarioLogado = usuarioAtual;
+                localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
+            }
+        } catch (err) {
+            console.error('Erro revalidacao:', err);
+            localStorage.removeItem("usuarioLogado");
+            usuarioLogado = null;
+        }
+    }
+
+    const somenteVisualizacao = !!(usuarioLogado && usuarioLogado.role === "visualizador");
+    const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
+
+    // =========================================================================
+    // SISTEMA DE NOTIFICAÇÕES (TOASTS)
+    // =========================================================================
+    const iconesToast = { erro: '⚠️', sucesso: '✅', aviso: '🚫' };
+
+    function mostrarToast(mensagem, tipo = 'erro') {
+        const container = document.getElementById('toastContainer');
+        if (!container) { alert(mensagem); return; }
+
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${tipo}`;
+        toast.innerHTML = `
+            <span class="toast-icone">${iconesToast[tipo] || 'ℹ️'}</span>
+            <span>${escapeHTML(mensagem)}</span>
+            <button class="toast-fechar" aria-label="Fechar">&times;</button>
+        `;
+
+        function remover() {
+            toast.classList.add('toast-saindo');
+            setTimeout(() => toast.remove(), 200);
+        }
+
+        const btnFechar = toast.querySelector('.toast-fechar');
+        if (btnFechar) btnFechar.addEventListener('click', remover);
+        container.appendChild(toast);
+        setTimeout(remover, 6000);
+    }
+
+    function mostrarToastAcao(mensagem, textoAcao, aoClicarAcao) {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-aviso';
+        toast.innerHTML = `
+            <span class="toast-icone">🗑️</span>
+            <span>${escapeHTML(mensagem)}</span>
+            <button class="toast-acao">${escapeHTML(textoAcao)}</button>
+            <button class="toast-fechar" aria-label="Fechar">&times;</button>
+        `;
+
+        function remover() {
+            toast.classList.add('toast-saindo');
+            setTimeout(() => toast.remove(), 200);
+        }
+
+        const timeoutSumir = setTimeout(remover, 6000);
+
+        const btnAcao = toast.querySelector('.toast-acao');
+        if (btnAcao) {
+            btnAcao.addEventListener('click', function() {
+                clearTimeout(timeoutSumir);
+                remover();
+                aoClicarAcao();
+            });
+        }
+
+        const btnFechar = toast.querySelector('.toast-fechar');
+        if (btnFechar) {
+            btnFechar.addEventListener('click', function() {
+                clearTimeout(timeoutSumir);
+                remover();
+            });
+        }
+
+        container.appendChild(toast);
+    }
+
+    // Garante que apertar Enter salva o formulário
+    function habilitarEnterParaSalvar(form) {
+        if (!form) return;
+        form.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            if (e.target.tagName === 'TEXTAREA') return;
+            if (e.target.tagName === 'BUTTON') return;
+            e.preventDefault();
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        });
+    }
+
+    // =========================================================================
+    // DOM e Estado inicial
+    // =========================================================================
     const telaLogin = document.getElementById("loginTela");
     const sistema = document.getElementById("sistema");
 
-    if(usuarioLogado){
-
-        telaLogin.style.display="none";
-        sistema.style.display="block";
-
-    }else{
-
-        telaLogin.style.display="flex";
-        sistema.style.display="none";
-
+    if (telaLogin && sistema) {
+        if (usuarioLogado) {
+            telaLogin.style.display = "none";
+            sistema.style.display = "block";
+        } else {
+            telaLogin.style.display = "flex";
+            sistema.style.display = "none";
+        }
     }
 
-    // Esconde a tela de carregamento inicial assim que já sabemos pra onde ir
     const telaCarregandoEl = document.getElementById('telaCarregando');
     if (telaCarregandoEl) {
         telaCarregandoEl.classList.add('escondida');
@@ -140,7 +161,7 @@ function habilitarEnterParaSalvar(form) {
     }
 
     // =========================================================================
-    // MODO ESCURO (lembrado no navegador, não é dado do sistema)
+    // MODO ESCURO
     // =========================================================================
     const btnTema = document.getElementById('btnTema');
     function aplicarTema(tema) {
@@ -156,7 +177,6 @@ function habilitarEnterParaSalvar(form) {
         });
     }
 
-    // Gera uma cor consistente a partir do nome, pra usar em avatares de iniciais
     function corAPartirDoNome(nome) {
         const paleta = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
         let soma = 0;
@@ -164,21 +184,16 @@ function habilitarEnterParaSalvar(form) {
         return paleta[soma % paleta.length];
     }
 
-    function avatarIniciais(nome) {
+    function avatarIniciaisHTML(nome) {
         if (!nome) return '';
-        const iniciais = nome.trim().slice(0, 2).toUpperCase();
-        return `<span class="avatar-iniciais" style="background:${corAPartirDoNome(nome)};">${iniciais}</span>`;
+        const iniciais = escapeHTML((nome.trim().slice(0, 2) || '').toUpperCase());
+        const cor = corAPartirDoNome(nome);
+        return `<span class="avatar-iniciais" style="background:${cor};">${iniciais}</span>`;
     }
 
     // =========================================================================
-    // 0. CONVERSÕES ENTRE O FORMATO DO BANCO (SUPABASE) E O FORMATO DO APP
+    // CONVERSÕES ENTRE DB E APP
     // =========================================================================
-
-    // A cor do compromisso combina Tipo + Status:
-    // - Cancelado sempre vence (vermelho), não importa o status
-    // - "Não Compareceu" e "Realizado" (Concluir) sobrepõem a cor do Tipo,
-    //   funcionando como um alerta/confirmação visual rápido
-    // - Fora esses casos, a cor normal é a do Tipo
     function classePorCompromisso(tipo, status) {
         if (tipo === 'Cancelado' || tipo === 'Cancelamento') return 'evento-cancelado';
         if (status === 'Não Compareceu') return 'evento-nao-compareceu';
@@ -196,7 +211,8 @@ function habilitarEnterParaSalvar(form) {
             start: row.start,
             end: row.end || undefined,
             tipo: row.tipo,
-            className: classePorCompromisso(row.tipo, row.status),
+            // Mapeia o campo do DB 'classname' para a propriedade do FullCalendar 'className'
+            className: row.classname || classePorCompromisso(row.tipo, row.status),
             descricao: row.descricao || '',
             agente: row.agente || '',
             solicitante: row.solicitante || '',
@@ -218,6 +234,7 @@ function habilitarEnterParaSalvar(form) {
             start: c.start,
             end: c.end || null,
             tipo: c.tipo,
+            // grava no DB usando o nome do campo 'classname'
             classname: classePorCompromisso(c.tipo, c.status),
             descricao: c.descricao || '',
             agente: c.agente || '',
@@ -234,7 +251,7 @@ function habilitarEnterParaSalvar(form) {
     }
 
     // =========================================================================
-    // 1. ESTADO GLOBAL (AGORA CARREGADO DO SUPABASE)
+    // ESTADO GLOBAL
     // =========================================================================
     let compromissos = [];
 
@@ -245,7 +262,7 @@ function habilitarEnterParaSalvar(form) {
     let nomeEditorAtual = '';
 
     // =========================================================================
-    // 2. MAPEAMENTO DE ELEMENTOS DO DOM
+    // MAPEAMENTO DE ELEMENTOS DO DOM
     // =========================================================================
     const calendarEl = document.getElementById('calendar');
     const inputBusca = document.querySelector('.busca input');
@@ -257,16 +274,13 @@ function habilitarEnterParaSalvar(form) {
         if (btnApagarEvento) btnApagarEvento.style.display = 'none';
         if (divisorApagar) divisorApagar.style.display = 'none';
     }
-    
-    // Modais
+
     const modalDetalhes = document.getElementById('modalDetalhes');
     const modalCadastro = document.getElementById('modalCadastro') || document.getElementById('cadastroEvento');
-    
-    // Botões de fechar modais
+
     const btnFecharDetalhes = document.querySelector('.fechar-detalhes');
     const btnFecharCadastro = document.querySelector('.fechar-cadastro') || document.querySelector('.fechar');
-    
-    // Formulário de Cadastro/Edição
+
     const formCadastro = document.getElementById('formCadastroEvento') || document.querySelector('#modalCadastro form');
     habilitarEnterParaSalvar(formCadastro);
     const inputTitulo = document.getElementById('txtTitulo') || document.getElementById('titulo');
@@ -275,9 +289,7 @@ function habilitarEnterParaSalvar(form) {
     const inputCargoSolicitante = document.getElementById('txtCargoSolicitante');
     const selectUnidade = document.getElementById('selUnidade');
 
-    // =========================================================================
-    // 2.1 LISTA DE MUNICÍPIOS E UNIDADES DE SAÚDE
-    // =========================================================================
+    // MUNICÍPIOS / UNIDADES
     const municipios = {
         "Governador Valadares": [
             "ESF Altinópolis",
@@ -319,25 +331,21 @@ function habilitarEnterParaSalvar(form) {
 
     function popularUnidades() {
         if (!selectUnidade) return;
-
         selectUnidade.innerHTML = '<option value="">Selecione a unidade...</option>';
-
         Object.keys(municipios).forEach(nomeMunicipio => {
             const grupo = document.createElement('optgroup');
             grupo.label = nomeMunicipio;
-
             municipios[nomeMunicipio].forEach(unidade => {
                 const opcao = document.createElement('option');
                 opcao.value = unidade;
                 opcao.textContent = unidade;
                 grupo.appendChild(opcao);
             });
-
             selectUnidade.appendChild(grupo);
         });
     }
-
     popularUnidades();
+
     const inputData = document.getElementById('txtData') || document.getElementById('data');
     const inputHoraInicio = document.getElementById('txtHoraInicio') || document.getElementById('horaInicio');
     const selectTipo = document.getElementById('selTipo') || document.getElementById('tipo');
@@ -348,16 +356,15 @@ function habilitarEnterParaSalvar(form) {
     const grupoParticipantes = document.getElementById('grupoParticipantes');
     const txtQtdParticipantes = document.getElementById('txtQtdParticipantes');
 
-    // Mostra o campo de participantes só quando o Tipo for Treinamento
     function atualizarVisibilidadeParticipantes() {
         if (!grupoParticipantes || !selectTipo) return;
         grupoParticipantes.style.display = (selectTipo.value === 'Treinamento') ? 'flex' : 'none';
     }
     if (selectTipo) {
         selectTipo.addEventListener('change', atualizarVisibilidadeParticipantes);
+        atualizarVisibilidadeParticipantes();
     }
 
-    // Mostra o campo de motivo só quando o status for "Faltou"
     function atualizarVisibilidadeMotivoFalta() {
         if (!grupoMotivoFalta || !selectStatus) return;
         const faltou = selectStatus.value === 'Não Compareceu';
@@ -366,83 +373,58 @@ function habilitarEnterParaSalvar(form) {
     }
     if (selectStatus) {
         selectStatus.addEventListener('change', atualizarVisibilidadeMotivoFalta);
+        atualizarVisibilidadeMotivoFalta();
     }
 
     // =========================================================================
-    // 3. CONFIGURAÇÃO PRINCIPAL DO FULLCALENDAR
+    // FULLCALENDAR (cria somente se existir elemento)
     // =========================================================================
-    const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        height: 'auto',
-        locale: 'pt-br',
-        weekends: false, // Oculta sábados e domingos
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        },
-        buttonText: {
-            today: 'Hoje',
-            month: 'Mês',
-            week: 'Semana',
-            day: 'Dia'
-        },
-        events: [],
-        editable: !somenteVisualizacao,
-        selectable: !somenteVisualizacao,
-
-        // Evita empilhar dezenas de compromissos no quadradinho do dia:
-        // mostra só alguns e um link "+N mais" que abre a lista completa daquele dia
-        dayMaxEvents: 3,
-        moreLinkText: function(num) { return `+${num} mais`; },
-        eventOrder: 'start',
-        eventOrderStrict: true,
-
-        // Clique em um dia vazio -> Abre modal de Cadastro
-        select: function(info) {
-            dataSelecionadaClique = info.startStr;
-            abrirModalCadastro(false, null);
-        },
-
-        // Clique normal em um evento -> Abre modal de Detalhes
-        eventClick: function(info) {
-            abrirModalDetalhes(info.event);
-        },
-
-        // Arrastar e soltar evento -> Atualiza a data no Supabase
-        eventDrop: function(info) {
-            atualizarDataEvento(info.event);
-        },
-
-        // Redimensionar tempo do evento -> Atualiza no Supabase
-        eventResize: function(info) {
-            atualizarDataEvento(info.event);
-        },
-
-        eventTimeFormat: {
-            hour: '2-digit',
-            minute: '2-digit',
-            meridiem: false
-        },
-
-        // Grava o ID real do compromisso no elemento visual, para o menu de
-        // contexto (botão direito) conseguir identificar o evento certo mesmo
-        // quando dois compromissos têm o mesmo título (ex: após "Duplicar")
-        eventDidMount: function(info) {
-            info.el.setAttribute('data-event-id', info.event.id);
-        },
-
-        // Recalcula os cards e o resumo sempre que o usuário navega
-        // (mês anterior/próximo, "Hoje", ou troca de visão Mês/Semana/Dia)
-        datesSet: function() {
-            atualizarDashboard();
-        }
-    });
-
-    calendar.render();
+    let calendar = null;
+    if (calendarEl) {
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            height: 'auto',
+            locale: 'pt-br',
+            weekends: false,
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            buttonText: { today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia' },
+            events: [],
+            editable: !somenteVisualizacao,
+            selectable: !somenteVisualizacao,
+            dayMaxEvents: 3,
+            moreLinkText: function(num) { return `+${num} mais`; },
+            eventOrder: 'start',
+            eventOrderStrict: true,
+            select: function(info) {
+                dataSelecionadaClique = info.startStr;
+                abrirModalCadastro(false, null);
+            },
+            eventClick: function(info) {
+                abrirModalDetalhes(info.event);
+            },
+            eventDrop: function(info) {
+                atualizarDataEvento(info.event);
+            },
+            eventResize: function(info) {
+                atualizarDataEvento(info.event);
+            },
+            eventTimeFormat: { hour: '2-digit', minute: '2-digit', meridiem: false },
+            eventDidMount: function(info) {
+                info.el.setAttribute('data-event-id', info.event.id);
+            },
+            datesSet: function() {
+                atualizarDashboard();
+            }
+        });
+        calendar.render();
+    }
 
     // =========================================================================
-    // 3.1 CARREGA OS COMPROMISSOS DO SUPABASE
+    // CARREGA COMPROMISSOS
     // =========================================================================
     async function carregarCompromissos() {
         const { data, error } = await supabaseClient
@@ -451,23 +433,23 @@ function habilitarEnterParaSalvar(form) {
             .order('start', { ascending: true });
 
         if (error) {
-            mostrarToast('Erro ao carregar compromissos: ' + error.message, 'erro');
+            mostrarToast('Erro ao carregar compromissos: ' + (error.message || error), 'erro');
             return;
         }
 
         compromissos = (data || []).map(linhaParaCompromisso);
-        calendar.removeAllEvents();
-        calendar.addEventSource(compromissos);
+        if (calendar) {
+            calendar.removeAllEvents();
+            calendar.addEventSource(compromissos);
+        }
         atualizarDashboard();
     }
 
     // =========================================================================
-    // 4. SISTEMA DE DASHBOARD, INTEGRAÇÃO DE CARDS E LISTAS
+    // DASHBOARD
     // =========================================================================
-
-    // Devolve só os compromissos do mês que está sendo exibido no calendário
-    // (usado tanto pelos cards do dashboard quanto pelo Relatório Mensal)
     function compromissosDoMesExibido() {
+        if (!calendar) return [];
         const dataFoco = calendar.getDate();
         const anoFoco = dataFoco.getFullYear();
         const mesFoco = dataFoco.getMonth();
@@ -479,6 +461,7 @@ function habilitarEnterParaSalvar(form) {
     }
 
     function nomeDoMesExibido() {
+        if (!calendar) return '';
         return calendar.getDate().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     }
 
@@ -487,7 +470,6 @@ function habilitarEnterParaSalvar(form) {
         const listaProximosEl = document.getElementById('listaProximos');
         const conteudoResumoEl = document.getElementById('conteudoResumo');
 
-        // Cards: só contam o que está dentro do mês exibido no calendário
         compromissosDoMesExibido().forEach(comp => {
             if (comp.tipo === 'Treinamento') qtdTreinamentos++;
             else if (comp.tipo === 'Visita') qtdVisitas++;
@@ -495,8 +477,6 @@ function habilitarEnterParaSalvar(form) {
             else if (comp.tipo === 'Cancelado' || comp.tipo === 'Cancelamento') qtdCancelados++;
         });
 
-        // "Próximos Compromissos da Semana": de verdade só o que vem nos próximos 7 dias,
-        // independente de qual mês está sendo exibido no calendário
         if (listaProximosEl) {
             listaProximosEl.innerHTML = '';
 
@@ -528,11 +508,12 @@ function habilitarEnterParaSalvar(form) {
                 const horaFormatada = dataObj.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 
                 item.innerHTML = `
-                    <h4>${comp.title}</h4>
-                    <p>📅 ${dataFormatada} às ${horaFormatada} | <strong>${comp.tipo}</strong></p>
+                    <h4>${escapeHTML(comp.title)}</h4>
+                    <p>📅 ${escapeHTML(dataFormatada)} às ${escapeHTML(horaFormatada)} | <strong>${escapeHTML(comp.tipo)}</strong></p>
                 `;
 
                 item.addEventListener('click', () => {
+                    if (!calendar) return;
                     const ev = calendar.getEventById(comp.id);
                     if (ev) abrirModalDetalhes(ev);
                 });
@@ -541,17 +522,15 @@ function habilitarEnterParaSalvar(form) {
             });
         }
 
-        // Injeta os valores recalculados nos Cards de Resumo
         if (document.getElementById('cardTreinamentos')) document.getElementById('cardTreinamentos').innerText = qtdTreinamentos;
         if (document.getElementById('cardVisitas')) document.getElementById('cardVisitas').innerText = qtdVisitas;
         if (document.getElementById('cardDemandas')) document.getElementById('cardDemandas').innerText = qtdDemandas;
         if (document.getElementById('cardCancelados')) document.getElementById('cardCancelados').innerText = qtdCancelados;
 
-        // Injeta as estatísticas no Resumo Descritivo Lateral
         if (conteudoResumoEl) {
             const totalAtivos = qtdTreinamentos + qtdVisitas + qtdDemandas;
             conteudoResumoEl.innerHTML = `
-                <p>Em <strong>${nomeDoMesExibido()}</strong>, você gerencia <strong>${totalAtivos}</strong> ações agendadas.</p>
+                <p>Em <strong>${escapeHTML(nomeDoMesExibido())}</strong>, você gerencia <strong>${totalAtivos}</strong> ações agendadas.</p>
                 <p>Compromissos abortados/cancelados no mês: <strong>${qtdCancelados}</strong> itens.</p>
                 <p style="font-size: 11px; color:#64748b; margin-top:5px;">Clique com o botão direito nos blocos do calendário para ver ações rápidas.</p>
             `;
@@ -559,38 +538,34 @@ function habilitarEnterParaSalvar(form) {
     }
 
     // =========================================================================
-    // 5. OPERAÇÕES DE CRUD (SALVAR, CRIAR, ATUALIZAR, SOLTAR) — VIA SUPABASE
+    // CRUD: Abrir modal e salvar
     // =========================================================================
-    
     function abrirModalCadastro(editar = false, event = null) {
         modoEdicao = editar;
         const tituloModal = document.getElementById('tituloModalCadastro');
         if (tituloModal) tituloModal.innerText = editar ? 'Editar Compromisso' : 'Novo Compromisso';
-        
+
         if (editar && event) {
             idEventoSelecionado = event.id;
 
-            // Remove sufixos legados de "- Editado por X" / "- Cancelado por X"
-            // para não deixar o título com marcações antigas ao reativar um compromisso
             const tituloLimpo = (event.title || '').split(' - Editado por')[0].split(' - Cancelado por')[0];
             if (inputTitulo) inputTitulo.value = tituloLimpo;
-            
-            // Separa Data e Hora no formato ISO (YYYY-MM-DD)
-            const dataIso = event.startStr.split('T')[0];
+
+            const dataIso = (event.startStr || '').split('T')[0];
             if (inputData) inputData.value = dataIso;
-            
-            const horaIn = event.startStr.split('T')[1] ? event.startStr.split('T')[1].substring(0,5) : '';
+
+            const horaIn = event.startStr && event.startStr.split('T')[1] ? event.startStr.split('T')[1].substring(0,5) : '';
             if (inputHoraInicio) inputHoraInicio.value = horaIn;
-            
-            if (inputAgente) inputAgente.value = event.extendedProps.agente || '';
-            if (inputSolicitante) inputSolicitante.value = event.extendedProps.solicitante || '';
-            if (inputCargoSolicitante) inputCargoSolicitante.value = event.extendedProps.cargoSolicitante || '';
-            if (selectUnidade) selectUnidade.value = event.extendedProps.unidade || '';
-            if (selectTipo) selectTipo.value = event.extendedProps.tipo || 'Treinamento';
-            if (selectStatus) selectStatus.value = event.extendedProps.status || 'Aguardando Confirmação';
-            if (txtDescricao) txtDescricao.value = event.extendedProps.descricao || '';
-            if (txtMotivoFalta) txtMotivoFalta.value = event.extendedProps.motivoFalta || '';
-            if (txtQtdParticipantes) txtQtdParticipantes.value = event.extendedProps.qtdParticipantes ?? '';
+
+            if (inputAgente) inputAgente.value = event.extendedProps?.agente || '';
+            if (inputSolicitante) inputSolicitante.value = event.extendedProps?.solicitante || '';
+            if (inputCargoSolicitante) inputCargoSolicitante.value = event.extendedProps?.cargoSolicitante || '';
+            if (selectUnidade) selectUnidade.value = event.extendedProps?.unidade || '';
+            if (selectTipo) selectTipo.value = event.extendedProps?.tipo || 'Treinamento';
+            if (selectStatus) selectStatus.value = event.extendedProps?.status || 'Aguardando Confirmação';
+            if (txtDescricao) txtDescricao.value = event.extendedProps?.descricao || '';
+            if (txtMotivoFalta) txtMotivoFalta.value = event.extendedProps?.motivoFalta || '';
+            if (txtQtdParticipantes) txtQtdParticipantes.value = event.extendedProps?.qtdParticipantes ?? '';
         } else {
             idEventoSelecionado = null;
             if (formCadastro) formCadastro.reset();
@@ -611,10 +586,14 @@ function habilitarEnterParaSalvar(form) {
         formCadastro.addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const dataFormatada = inputData.value;
-            const dataHoraInicio = `${dataFormatada}T${inputHoraInicio.value}:00`;
+            const dataFormatada = inputData?.value || '';
+            const horaVal = inputHoraInicio?.value || '';
+            const dataHoraInicio = dataFormatada ? `${dataFormatada}T${horaVal}:00` : '';
 
-            const classeCor = classePorCompromisso(selectTipo.value, selectStatus ? selectStatus.value : '');
+            const tipoVal = selectTipo ? selectTipo.value : '';
+            const statusVal = selectStatus ? selectStatus.value : '';
+
+            const classeCor = classePorCompromisso(tipoVal, statusVal);
 
             const agente = inputAgente ? inputAgente.value : '';
             const solicitante = inputSolicitante ? inputSolicitante.value : '';
@@ -622,7 +601,7 @@ function habilitarEnterParaSalvar(form) {
             const unidade = selectUnidade ? selectUnidade.value : '';
             const status = selectStatus ? selectStatus.value : 'Aguardando Confirmação';
             const motivoFalta = (status === 'Não Compareceu' && txtMotivoFalta) ? txtMotivoFalta.value : '';
-            const qtdParticipantes = (selectTipo.value === 'Treinamento' && txtQtdParticipantes && txtQtdParticipantes.value !== '')
+            const qtdParticipantes = (selectTipo && selectTipo.value === 'Treinamento' && txtQtdParticipantes && txtQtdParticipantes.value !== '')
                 ? parseInt(txtQtdParticipantes.value, 10)
                 : null;
 
@@ -630,24 +609,22 @@ function habilitarEnterParaSalvar(form) {
             if (btnSalvar) btnSalvar.disabled = true;
 
             if (modoEdicao && idEventoSelecionado) {
-                // Modo Edição: Atualiza o registro no Supabase
                 const dadosAtualizados = {
-                    title: inputTitulo.value,
+                    title: inputTitulo ? inputTitulo.value : '',
                     start: dataHoraInicio,
-                    tipo: selectTipo.value,
+                    tipo: tipoVal,
                     classname: classeCor,
                     agente: agente,
                     solicitante: solicitante,
                     cargo_solicitante: cargoSolicitante,
                     unidade: unidade,
                     status: status,
-                    descricao: txtDescricao.value,
+                    descricao: txtDescricao ? txtDescricao.value : '',
                     motivo_falta: motivoFalta,
                     qtd_participantes: qtdParticipantes
                 };
                 if (nomeEditorAtual) dadosAtualizados.editado_por = nomeEditorAtual;
-                // Se o compromisso foi reativado (tipo diferente de Cancelado), limpa quem cancelou
-                if (selectTipo.value !== 'Cancelado') dadosAtualizados.cancelado_por = '';
+                if (selectTipo && selectTipo.value !== 'Cancelado') dadosAtualizados.cancelado_por = '';
 
                 const { error } = await supabaseClient
                     .from('compromissos')
@@ -657,25 +634,24 @@ function habilitarEnterParaSalvar(form) {
                 nomeEditorAtual = '';
 
                 if (error) {
-                    mostrarToast('Erro ao salvar alterações: ' + error.message, 'erro');
+                    mostrarToast('Erro ao salvar alterações: ' + (error.message || error), 'erro');
                     if (btnSalvar) btnSalvar.disabled = false;
                     return;
                 }
             } else {
-                // Modo Criação: Insere um novo registro no Supabase
                 const novoEvento = {
-                    id: String(Date.now()),
-                    title: inputTitulo.value,
+                    id: gerarId(),
+                    title: inputTitulo ? inputTitulo.value : '',
                     start: dataHoraInicio,
-                    criado_por: usuarioLogado.usuario,
-                    tipo: selectTipo.value,
+                    criado_por: usuarioLogado ? usuarioLogado.usuario : '',
+                    tipo: tipoVal,
                     classname: classeCor,
                     agente: agente,
                     solicitante: solicitante,
                     cargo_solicitante: cargoSolicitante,
                     unidade: unidade,
                     status: status,
-                    descricao: txtDescricao.value,
+                    descricao: txtDescricao ? txtDescricao.value : '',
                     motivo_falta: motivoFalta,
                     qtd_participantes: qtdParticipantes
                 };
@@ -683,7 +659,7 @@ function habilitarEnterParaSalvar(form) {
                 const { error } = await supabaseClient.from('compromissos').insert(novoEvento);
 
                 if (error) {
-                    mostrarToast('Erro ao criar compromisso: ' + error.message, 'erro');
+                    mostrarToast('Erro ao criar compromisso: ' + (error.message || error), 'erro');
                     if (btnSalvar) btnSalvar.disabled = false;
                     return;
                 }
@@ -696,7 +672,6 @@ function habilitarEnterParaSalvar(form) {
     }
 
     async function atualizarDataEvento(event) {
-        // Atualiza local (visual já foi movido pelo FullCalendar) e depois persiste no Supabase
         compromissos = compromissos.map(c => {
             if (c.id === event.id) {
                 return { ...c, start: event.startStr, end: event.endStr || event.startStr };
@@ -711,23 +686,15 @@ function habilitarEnterParaSalvar(form) {
             .eq('id', event.id);
 
         if (error) {
-            mostrarToast('Erro ao salvar o novo horário: ' + error.message, 'erro');
-            await carregarCompromissos(); // desfaz visualmente, recarregando do banco
+            mostrarToast('Erro ao salvar o novo horário: ' + (error.message || error), 'erro');
+            await carregarCompromissos();
         }
     }
 
     // =========================================================================
-    // 6. DETALHES, MODAL DE FECHAMENTO (O BOTÃO 'X')
+    // DETALHES
     // =========================================================================
-    // Mapeia cada tipo de compromisso para um ícone
-    const iconesTipo = {
-        'Treinamento': '🎓',
-        'Visita': '🚗',
-        'Demanda': '📋',
-        'Cancelado': '❌'
-    };
-
-    // Mapeia cada status para uma classe de cor do selo (badge)
+    const iconesTipo = { 'Treinamento': '🎓', 'Visita': '🚗', 'Demanda': '📋', 'Cancelado': '❌' };
     const classesStatus = {
         'Aguardando Confirmação': 'badge-aguardando',
         'Confirmado': 'badge-confirmado',
@@ -738,255 +705,257 @@ function habilitarEnterParaSalvar(form) {
 
     function abrirModalDetalhes(event) {
         const conteudo = document.getElementById('conteudoDetalhes');
-        if (modalDetalhes && conteudo) {
-            const desc = event.extendedProps.descricao || 'Sem descrição cadastrada.';
-            const tipo = event.extendedProps.tipo || 'Padrão';
-            const agente = event.extendedProps.agente || 'Não informado';
-            const solicitante = event.extendedProps.solicitante || 'Não informado';
-            const cargoSolicitante = event.extendedProps.cargoSolicitante || '';
-            const unidade = event.extendedProps.unidade || 'Não informado';
-            const status = event.extendedProps.status || 'Não informado';
-            const criadoPor = event.extendedProps.criadoPor || "";
+        if (!modalDetalhes || !conteudo || !event) return;
 
-            const icone = iconesTipo[tipo] || '📌';
-            const statusExibido = tipo === 'Cancelado' ? 'Cancelado' : status;
-            const classeBadge = tipo === 'Cancelado' ? 'badge-cancelado' : (classesStatus[status] || 'badge-aguardando');
-            const canceladoPor = event.extendedProps.canceladoPor || '';
-            const motivoFalta = event.extendedProps.motivoFalta || '';
-            const qtdParticipantes = event.extendedProps.qtdParticipantes;
+        const desc = event.extendedProps?.descricao || 'Sem descrição cadastrada.';
+        const tipo = event.extendedProps?.tipo || 'Padrão';
+        const agente = event.extendedProps?.agente || 'Não informado';
+        const solicitante = event.extendedProps?.solicitante || 'Não informado';
+        const cargoSolicitante = event.extendedProps?.cargoSolicitante || '';
+        const unidade = event.extendedProps?.unidade || 'Não informado';
+        const status = event.extendedProps?.status || 'Não informado';
+        const criadoPor = event.extendedProps?.criadoPor || "";
 
-            const dataObj = event.start;
-            const dataFormatada = dataObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const horaFormatada = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const icone = iconesTipo[tipo] || '📌';
+        const statusExibido = tipo === 'Cancelado' ? 'Cancelado' : status;
+        const classeBadge = tipo === 'Cancelado' ? 'badge-cancelado' : (classesStatus[status] || 'badge-aguardando');
+        const canceladoPor = event.extendedProps?.canceladoPor || '';
+        const motivoFalta = event.extendedProps?.motivoFalta || '';
+        const qtdParticipantes = event.extendedProps?.qtdParticipantes;
 
-            conteudo.innerHTML = `
-                <div class="detalhe-cabecalho">
-                    <div class="detalhe-icone-tipo">${icone}</div>
-                    <div>
-                        <h3 class="detalhe-titulo">${event.title}</h3>
-                        <span class="detalhe-badge ${classeBadge}">${statusExibido}</span>
-                    </div>
+        const dataObj = event.start instanceof Date ? event.start : new Date(event.start);
+        const dataFormatada = dataObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const horaFormatada = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        // Monta HTML com valores escapados
+        conteudo.innerHTML = `
+            <div class="detalhe-cabecalho">
+                <div class="detalhe-icone-tipo">${escapeHTML(icone)}</div>
+                <div>
+                    <h3 class="detalhe-titulo">${escapeHTML(event.title)}</h3>
+                    <span class="detalhe-badge ${escapeHTML(classeBadge)}">${escapeHTML(statusExibido)}</span>
                 </div>
+            </div>
 
-                <div class="detalhe-grid">
-                    <div class="detalhe-item">
-                        <span class="detalhe-label">📅 Data</span>
-                        <span class="detalhe-valor">${dataFormatada}</span>
-                    </div>
-                    <div class="detalhe-item">
-                        <span class="detalhe-label">🕒 Hora</span>
-                        <span class="detalhe-valor">${horaFormatada}</span>
-                    </div>
-                    <div class="detalhe-item">
-                        <span class="detalhe-label">🏷️ Categoria</span>
-                        <span class="detalhe-valor">${tipo}</span>
-                    </div>
-                    <div class="detalhe-item">
-                        <span class="detalhe-label">🏥 Unidade</span>
-                        <span class="detalhe-valor">${unidade}</span>
-                    </div>
-                    ${tipo === 'Treinamento' && qtdParticipantes !== null && qtdParticipantes !== undefined ? `
-                    <div class="detalhe-item">
-                        <span class="detalhe-label">👥 Participantes</span>
-                        <span class="detalhe-valor">${qtdParticipantes}</span>
-                    </div>` : ''}
+            <div class="detalhe-grid">
+                <div class="detalhe-item">
+                    <span class="detalhe-label">📅 Data</span>
+                    <span class="detalhe-valor">${escapeHTML(dataFormatada)}</span>
                 </div>
-
-                <div class="detalhe-secao">
-                    <div class="detalhe-secao-titulo">👤 Responsáveis</div>
-                    <div class="detalhe-item-linha">
-                        <span class="detalhe-label">Agente (Vivver)</span>
-                        <span class="detalhe-valor linha-com-avatar">${avatarIniciais(agente)}${agente}</span>
-                    </div>
-                    <div class="detalhe-item-linha">
-                        <span class="detalhe-label">Solicitado por</span>
-                        <span class="detalhe-valor">${solicitante}${cargoSolicitante ? ' <span class="detalhe-cargo">(' + cargoSolicitante + ')</span>' : ''}</span>
-                    </div>
-                    ${criadoPor ? `
-                    <div class="detalhe-item-linha">
-                        <span class="detalhe-label">Criado por</span>
-                        <span class="detalhe-valor linha-com-avatar">${avatarIniciais(criadoPor)}${criadoPor}</span>
-                    </div>` : ''}
-                    ${tipo === 'Cancelado' && canceladoPor ? `
-                    <div class="detalhe-item-linha">
-                        <span class="detalhe-label">❌ Cancelado por</span>
-                        <span class="detalhe-valor linha-com-avatar">${avatarIniciais(canceladoPor)}${canceladoPor}</span>
-                    </div>` : ''}
+                <div class="detalhe-item">
+                    <span class="detalhe-label">🕒 Hora</span>
+                    <span class="detalhe-valor">${escapeHTML(horaFormatada)}</span>
                 </div>
-
-                ${status === 'Não Compareceu' && motivoFalta ? `
-                <div class="detalhe-secao">
-                    <div class="detalhe-secao-titulo">🔴 Motivo da Falta</div>
-                    <p class="detalhe-obs detalhe-obs-falta">${motivoFalta}</p>
+                <div class="detalhe-item">
+                    <span class="detalhe-label">🏷️ Categoria</span>
+                    <span class="detalhe-valor">${escapeHTML(tipo)}</span>
+                </div>
+                <div class="detalhe-item">
+                    <span class="detalhe-label">🏥 Unidade</span>
+                    <span class="detalhe-valor">${escapeHTML(unidade)}</span>
+                </div>
+                ${tipo === 'Treinamento' && qtdParticipantes !== null && qtdParticipantes !== undefined ? `
+                <div class="detalhe-item">
+                    <span class="detalhe-label">👥 Participantes</span>
+                    <span class="detalhe-valor">${escapeHTML(String(qtdParticipantes))}</span>
                 </div>` : ''}
+            </div>
 
-                <div class="detalhe-secao">
-                    <div class="detalhe-secao-titulo">📝 Notas de Campo</div>
-                    <p class="detalhe-obs">${desc}</p>
+            <div class="detalhe-secao">
+                <div class="detalhe-secao-titulo">👤 Responsáveis</div>
+                <div class="detalhe-item-linha">
+                    <span class="detalhe-label">Agente (Vivver)</span>
+                    <span class="detalhe-valor linha-com-avatar">${avatarIniciaisHTML(agente)} ${escapeHTML(agente)}</span>
                 </div>
-            `;
-            modalDetalhes.style.display = 'flex';
-        }
+                <div class="detalhe-item-linha">
+                    <span class="detalhe-label">Solicitado por</span>
+                    <span class="detalhe-valor">${escapeHTML(solicitante)}${cargoSolicitante ? ' <span class="detalhe-cargo">(' + escapeHTML(cargoSolicitante) + ')</span>' : ''}</span>
+                </div>
+                ${criadoPor ? `
+                <div class="detalhe-item-linha">
+                    <span class="detalhe-label">Criado por</span>
+                    <span class="detalhe-valor linha-com-avatar">${avatarIniciaisHTML(criadoPor)} ${escapeHTML(criadoPor)}</span>
+                </div>` : ''}
+                ${tipo === 'Cancelado' && canceladoPor ? `
+                <div class="detalhe-item-linha">
+                    <span class="detalhe-label">❌ Cancelado por</span>
+                    <span class="detalhe-valor linha-com-avatar">${avatarIniciaisHTML(canceladoPor)} ${escapeHTML(canceladoPor)}</span>
+                </div>` : ''}
+            </div>
+
+            ${status === 'Não Compareceu' && motivoFalta ? `
+            <div class="detalhe-secao">
+                <div class="detalhe-secao-titulo">🔴 Motivo da Falta</div>
+                <p class="detalhe-obs detalhe-obs-falta">${escapeHTML(motivoFalta)}</p>
+            </div>` : ''}
+
+            <div class="detalhe-secao">
+                <div class="detalhe-secao-titulo">📝 Notas de Campo</div>
+                <p class="detalhe-obs">${escapeHTML(desc)}</p>
+            </div>
+        `;
+        modalDetalhes.style.display = 'flex';
     }
 
-    if (btnFecharDetalhes) btnFecharDetalhes.addEventListener('click', () => modalDetalhes.style.display = 'none');
-    if (btnFecharCadastro) btnFecharCadastro.addEventListener('click', () => modalCadastro.style.display = 'none');
+    if (btnFecharDetalhes) btnFecharDetalhes.addEventListener('click', () => { if (modalDetalhes) modalDetalhes.style.display = 'none'; });
+    if (btnFecharCadastro) btnFecharCadastro.addEventListener('click', () => { if (modalCadastro) modalCadastro.style.display = 'none'; });
 
     window.addEventListener('click', function(e) {
-        if (e.target === modalDetalhes) modalDetalhes.style.display = 'none';
-        if (e.target === modalCadastro) modalCadastro.style.display = 'none';
+        if (e.target === modalDetalhes && modalDetalhes) modalDetalhes.style.display = 'none';
+        if (e.target === modalCadastro && modalCadastro) modalCadastro.style.display = 'none';
     });
 
     // =========================================================================
-    // 7. MECANISMO DE CONTEXTMENU (BOTAO DIREITO: EDITAR, DUPLICAR, CANCELAR, APAGAR)
+    // CONTEXT MENU
     // =========================================================================
-    calendarEl.addEventListener('contextmenu', function(e) {
-        if (somenteVisualizacao) { e.preventDefault(); return; }
+    if (calendarEl && menuContexto) {
+        calendarEl.addEventListener('contextmenu', function(e) {
+            if (somenteVisualizacao) { e.preventDefault(); return; }
 
-        const blocoEventoVisual = e.target.closest('[data-event-id]');
-        if (blocoEventoVisual && menuContexto) {
-            e.preventDefault();
-
-            // Usa o ID real do evento (gravado pelo eventDidMount) em vez de casar
-            // pelo texto do título — evita pegar o compromisso errado quando dois
-            // eventos têm o mesmo título (ex: logo após usar "Duplicar")
-            eventoSelecionadoParaMenu = calendar.getEventById(blocoEventoVisual.dataset.eventId);
-
-            menuContexto.style.left = e.clientX + 'px';
-            menuContexto.style.top = e.clientY + 'px';
-            menuContexto.style.display = 'flex';
-        }
-    });
-
-    document.addEventListener('click', () => {
-        if (menuContexto) menuContexto.style.display = 'none';
-    });
-
-    // ✏️ Ação: EDITAR (usa automaticamente quem está logado e abre o formulário completo, pré-preenchido)
-    document.getElementById('btnEditarCompromisso').addEventListener('click', function() {
-        if (eventoSelecionadoParaMenu) {
-            nomeEditorAtual = usuarioLogado ? usuarioLogado.usuario : '';
-            abrirModalCadastro(true, eventoSelecionadoParaMenu);
-        }
-    });
-
-    // 📄 Ação: DUPLICAR (Continua livre - cria cópia exata instantaneamente)
-    document.getElementById('btnDuplicarCompromisso').addEventListener('click', async function() {
-        if (eventoSelecionadoParaMenu) {
-            const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
-            if (origem) {
-                const copiaClonada = {
-                    ...origem,
-                    id: String(Date.now()) // Gera um novo ID único baseado no timestamp
-                };
-
-                const { error } = await supabaseClient
-                    .from('compromissos')
-                    .insert(compromissoParaLinha(copiaClonada));
-
-                if (error) {
-                    mostrarToast('Erro ao duplicar: ' + error.message, 'erro');
-                    return;
-                }
-                await carregarCompromissos();
+            const blocoEventoVisual = e.target.closest('[data-event-id]');
+            if (blocoEventoVisual) {
+                e.preventDefault();
+                if (calendar) eventoSelecionadoParaMenu = calendar.getEventById(blocoEventoVisual.dataset.eventId);
+                menuContexto.style.left = e.clientX + 'px';
+                menuContexto.style.top = e.clientY + 'px';
+                menuContexto.style.display = 'flex';
             }
-        }
-    });
+        });
 
-    // ✅ Ação: CONCLUIR (marca rapidamente o status como Realizado, sem abrir o formulário inteiro)
-    document.getElementById('btnConcluirCompromisso').addEventListener('click', async function() {
-        if (!eventoSelecionadoParaMenu) return;
+        document.addEventListener('click', () => { if (menuContexto) menuContexto.style.display = 'none'; });
+    }
 
-        const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
-        if (!origem) return;
+    // Botões do menu — só se existirem
+    const btnEditarCompromisso = document.getElementById('btnEditarCompromisso');
+    if (btnEditarCompromisso) {
+        btnEditarCompromisso.addEventListener('click', function() {
+            if (eventoSelecionadoParaMenu) {
+                nomeEditorAtual = usuarioLogado ? usuarioLogado.usuario : '';
+                abrirModalCadastro(true, eventoSelecionadoParaMenu);
+            }
+        });
+    }
 
-        if (origem.tipo === 'Cancelado') {
-            mostrarToast('Não é possível concluir um compromisso já cancelado.', 'aviso');
-            return;
-        }
+    const btnDuplicarCompromisso = document.getElementById('btnDuplicarCompromisso');
+    if (btnDuplicarCompromisso) {
+        btnDuplicarCompromisso.addEventListener('click', async function() {
+            if (eventoSelecionadoParaMenu) {
+                const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+                if (origem) {
+                    const copiaClonada = {
+                        ...origem,
+                        id: gerarId()
+                    };
 
-        if (!confirm(`Marcar "${origem.title}" como Realizado?`)) return;
+                    const { error } = await supabaseClient
+                        .from('compromissos')
+                        .insert(compromissoParaLinha(copiaClonada));
 
-        const { error } = await supabaseClient
-            .from('compromissos')
-            .update({ status: 'Realizado' })
-            .eq('id', eventoSelecionadoParaMenu.id);
+                    if (error) {
+                        mostrarToast('Erro ao duplicar: ' + (error.message || error), 'erro');
+                        return;
+                    }
+                    await carregarCompromissos();
+                }
+            }
+        });
+    }
 
-        if (error) {
-            mostrarToast('Erro ao concluir: ' + error.message, 'erro');
-            return;
-        }
-        await carregarCompromissos();
-    });
-
-    // ❌ Ação: CANCELAR (confirma a ação, muda status/tipo e registra automaticamente quem cancelou)
-    document.getElementById('btnCancelarCompromisso').addEventListener('click', async function() {
-        if (eventoSelecionadoParaMenu) {
+    const btnConcluirCompromisso = document.getElementById('btnConcluirCompromisso');
+    if (btnConcluirCompromisso) {
+        btnConcluirCompromisso.addEventListener('click', async function() {
+            if (!eventoSelecionadoParaMenu) return;
             const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
             if (!origem) return;
-
-            if (!confirm(`Cancelar o compromisso "${origem.title}"?`)) return;
-
-            // Remove sufixos antigos que porventura estejam presos ao título
-            const tituloLimpo = origem.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
+            if (origem.tipo === 'Cancelado') {
+                mostrarToast('Não é possível concluir um compromisso já cancelado.', 'aviso');
+                return;
+            }
+            if (!confirm(`Marcar "${origem.title}" como Realizado?`)) return;
 
             const { error } = await supabaseClient
                 .from('compromissos')
-                .update({
-                    tipo: 'Cancelado',
-                    classname: 'evento-cancelado',
-                    title: tituloLimpo,
-                    cancelado_por: usuarioLogado ? usuarioLogado.usuario : ''
-                })
+                .update({ status: 'Realizado' })
                 .eq('id', eventoSelecionadoParaMenu.id);
 
             if (error) {
-                mostrarToast('Erro ao cancelar: ' + error.message, 'erro');
+                mostrarToast('Erro ao concluir: ' + (error.message || error), 'erro');
                 return;
             }
             await carregarCompromissos();
-        }
-    });
+        });
+    }
 
-    // 🗑️ Ação: APAGAR (só admin vê o botão; pede uma confirmação simples antes de remover)
-    document.getElementById('btnApagar').addEventListener('click', async function() {
-        if (!isAdmin) return;
-        if (!eventoSelecionadoParaMenu) return;
+    const btnCancelarCompromisso = document.getElementById('btnCancelarCompromisso');
+    if (btnCancelarCompromisso) {
+        btnCancelarCompromisso.addEventListener('click', async function() {
+            if (eventoSelecionadoParaMenu) {
+                const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+                if (!origem) return;
+                if (!confirm(`Cancelar o compromisso "${origem.title}"?`)) return;
 
-        const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
-        const nomeEvento = origem ? origem.title : 'este compromisso';
+                const tituloLimpo = origem.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
 
-        if (!confirm(`🗑️ Apagar "${nomeEvento}"? Você terá alguns segundos para desfazer logo em seguida.`)) return;
-
-        const { error } = await supabaseClient
-            .from('compromissos')
-            .delete()
-            .eq('id', eventoSelecionadoParaMenu.id);
-
-        if (error) {
-            mostrarToast('Erro ao apagar: ' + error.message, 'erro');
-            return;
-        }
-        await carregarCompromissos();
-
-        if (origem) {
-            mostrarToastAcao(`"${nomeEvento}" foi apagado.`, 'Desfazer', async function() {
-                const { error: erroDesfazer } = await supabaseClient
+                const { error } = await supabaseClient
                     .from('compromissos')
-                    .insert([compromissoParaLinha(origem)]);
+                    .update({
+                        tipo: 'Cancelado',
+                        classname: 'evento-cancelado',
+                        title: tituloLimpo,
+                        cancelado_por: usuarioLogado ? usuarioLogado.usuario : ''
+                    })
+                    .eq('id', eventoSelecionadoParaMenu.id);
 
-                if (erroDesfazer) {
-                    mostrarToast('Não foi possível desfazer: ' + erroDesfazer.message, 'erro');
+                if (error) {
+                    mostrarToast('Erro ao cancelar: ' + (error.message || error), 'erro');
                     return;
                 }
                 await carregarCompromissos();
-                mostrarToast('Compromisso restaurado.', 'sucesso');
-            });
-        }
-    });
+            }
+        });
+    }
+
+    const btnApagar = document.getElementById('btnApagar');
+    if (btnApagar) {
+        btnApagar.addEventListener('click', async function() {
+            if (!isAdmin) return;
+            if (!eventoSelecionadoParaMenu) return;
+
+            const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
+            const nomeEvento = origem ? origem.title : 'este compromisso';
+
+            if (!confirm(`🗑️ Apagar "${nomeEvento}"? Você terá alguns segundos para desfazer logo em seguida.`)) return;
+
+            const { error } = await supabaseClient
+                .from('compromissos')
+                .delete()
+                .eq('id', eventoSelecionadoParaMenu.id);
+
+            if (error) {
+                mostrarToast('Erro ao apagar: ' + (error.message || error), 'erro');
+                return;
+            }
+            await carregarCompromissos();
+
+            if (origem) {
+                mostrarToastAcao(`"${nomeEvento}" foi apagado.`, 'Desfazer', async function() {
+                    const { error: erroDesfazer } = await supabaseClient
+                        .from('compromissos')
+                        .insert([compromissoParaLinha(origem)]);
+
+                    if (erroDesfazer) {
+                        mostrarToast('Não foi possível desfazer: ' + (erroDesfazer.message || erroDesfazer), 'erro');
+                        return;
+                    }
+                    await carregarCompromissos();
+                    mostrarToast('Compromisso restaurado.', 'sucesso');
+                });
+            }
+        });
+    }
 
     // =========================================================================
-    // 8. FILTROS E BUSCA POR DIGITAÇÃO (agora combinados, um não anula o outro)
+    // FILTROS E BUSCA
     // =========================================================================
     let filtroTipoAtual = 'Todos';
     let termoBuscaAtual = '';
@@ -1001,17 +970,23 @@ function habilitarEnterParaSalvar(form) {
         }
 
         if (termoBuscaAtual) {
-            resultado = resultado.filter(c => c.title.toLowerCase().includes(termoBuscaAtual));
+            resultado = resultado.filter(c => (c.title || '').toLowerCase().includes(termoBuscaAtual));
         }
 
-        calendar.removeAllEvents();
-        calendar.addEventSource(resultado);
+        if (calendar) {
+            calendar.removeAllEvents();
+            calendar.addEventSource(resultado);
+        }
     }
 
     if (inputBusca) {
+        let debounceTimer = null;
         inputBusca.addEventListener('input', function(e) {
-            termoBuscaAtual = e.target.value.toLowerCase();
-            aplicarFiltrosCombinados();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                termoBuscaAtual = (e.target.value || '').toLowerCase();
+                aplicarFiltrosCombinados();
+            }, 150);
         });
     }
 
@@ -1024,15 +999,15 @@ function habilitarEnterParaSalvar(form) {
         });
     });
 
-    // Card de Relatório aciona a visualização de Impressão limpa
-    // Elementos do Modal de Relatório
+    // =========================================================================
+    // RELATÓRIO / IMPRESSÃO
+    // =========================================================================
     const modalRelatorio = document.getElementById('modalRelatorio');
     const btnFecharRelatorio = document.getElementById('btnFecharRelatorio');
     const btnApenasFecharRelatorio = document.getElementById('btnApenasFecharRelatorio');
     const btnImprimirDoRelatorio = document.getElementById('btnImprimirDoRelatorio');
-
-    // 📊 Ação: Gerar e exibir janela de relatório na tela
     const btnRelatorio = document.getElementById('btnRelatorio');
+
     if (btnRelatorio) {
         btnRelatorio.addEventListener('click', function() {
             const listaAtividadesRelatorio = document.getElementById('listaAtividadesRelatorio');
@@ -1043,20 +1018,23 @@ function habilitarEnterParaSalvar(form) {
                 dataRelatorio.innerText = `Referente a ${nomeDoMesExibido()} — gerado em ${new Date().toLocaleString('pt-BR')}`;
             }
 
-            // Pega os contadores atuais direto dos cards da tela (já filtrados pelo mês exibido)
-            document.getElementById('repTreinamentos').innerText = document.getElementById('cardTreinamentos').innerText;
-            document.getElementById('repVisitas').innerText = document.getElementById('cardVisitas').innerText;
-            document.getElementById('repDemandas').innerText = document.getElementById('cardDemandas').innerText;
-            document.getElementById('repCancelados').innerText = document.getElementById('cardCancelados').innerText;
+            const cardTre = document.getElementById('cardTreinamentos');
+            const cardVis = document.getElementById('cardVisitas');
+            const cardDem = document.getElementById('cardDemandas');
+            const cardCan = document.getElementById('cardCancelados');
+
+            if (document.getElementById('repTreinamentos') && cardTre) document.getElementById('repTreinamentos').innerText = cardTre.innerText;
+            if (document.getElementById('repVisitas') && cardVis) document.getElementById('repVisitas').innerText = cardVis.innerText;
+            if (document.getElementById('repDemandas') && cardDem) document.getElementById('repDemandas').innerText = cardDem.innerText;
+            if (document.getElementById('repCancelados') && cardCan) document.getElementById('repCancelados').innerText = cardCan.innerText;
 
             const totalParticipantes = compromissosDoMes.reduce((soma, c) => soma + (Number(c.qtdParticipantes) || 0), 0);
             const repParticipantesEl = document.getElementById('repParticipantes');
             if (repParticipantesEl) repParticipantesEl.innerText = totalParticipantes;
 
-            // Monta a lista textual limpa para impressão (só do mês exibido)
             if (listaAtividadesRelatorio) {
                 listaAtividadesRelatorio.innerHTML = '';
-                
+
                 if (compromissosDoMes.length === 0) {
                     listaAtividadesRelatorio.innerHTML = '<p style="color:#64748b; font-size:13px; text-align:center;">Nenhum compromisso neste mês.</p>';
                 } else {
@@ -1064,33 +1042,34 @@ function habilitarEnterParaSalvar(form) {
                         .slice()
                         .sort((a, b) => new Date(a.start) - new Date(b.start))
                         .forEach(comp => {
-                        const dataComp = new Date(comp.start).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
-                        const infoParticipantes = (comp.tipo === 'Treinamento' && comp.qtdParticipantes !== null && comp.qtdParticipantes !== undefined)
-                            ? ` | 👥 ${comp.qtdParticipantes} participante(s)`
-                            : '';
-                        const itemHtml = `
-                            <div style="padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px;">
-                                <strong style="color:#1e293b;">${comp.title}</strong><br>
-                                <span style="color:#64748b;">📅 ${dataComp} | Tipo: ${comp.tipo}${infoParticipantes}</span>
-                            </div>
-                        `;
-                        listaAtividadesRelatorio.innerHTML += itemHtml;
-                    });
+                            const dataComp = new Date(comp.start).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+                            const infoParticipantes = (comp.tipo === 'Treinamento' && comp.qtdParticipantes !== null && comp.qtdParticipantes !== undefined)
+                                ? ` | 👥 ${escapeHTML(String(comp.qtdParticipantes))} participante(s)`
+                                : '';
+                            const itemHtml = `
+                                <div style="padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 13px;">
+                                    <strong style="color:#1e293b;">${escapeHTML(comp.title)}</strong><br>
+                                    <span style="color:#64748b;">📅 ${escapeHTML(dataComp)} | Tipo: ${escapeHTML(comp.tipo)}${infoParticipantes}</span>
+                                </div>
+                            `;
+                            listaAtividadesRelatorio.innerHTML += itemHtml;
+                        });
                 }
             }
 
-            // Mostra a janela do relatório
             if (modalRelatorio) modalRelatorio.style.display = 'flex';
         });
     }
 
-    // 🖨️ Ação do Botão Interno: Imprime APENAS o conteúdo do relatório de forma limpa
     if (btnImprimirDoRelatorio) {
         btnImprimirDoRelatorio.addEventListener('click', function() {
-            const conteudoImpressao = document.getElementById('impressaoArea').innerHTML;
-            
-            // Abre uma janela temporária oculta apenas para enviar para a impressora
+            const impressaoArea = document.getElementById('impressaoArea');
+            const conteudoImpressao = impressaoArea ? impressaoArea.innerHTML : '';
             const janelaImpressao = window.open('', '_blank', 'width=800,height=600');
+            if (!janelaImpressao || !janelaImpressao.document) {
+                mostrarToast('Não foi possível abrir janela de impressão (popup bloqueado).', 'aviso');
+                return;
+            }
             janelaImpressao.document.write(`
                 <html>
                 <head>
@@ -1113,10 +1092,10 @@ function habilitarEnterParaSalvar(form) {
         });
     }
 
-    // Funções para fechar o relatório
-    if (btnFecharRelatorio) btnFecharRelatorio.addEventListener('click', () => modalRelatorio.style.display = 'none');
-    if (btnApenasFecharRelatorio) btnApenasFecharRelatorio.addEventListener('click', () => modalRelatorio.style.display = 'none');
-    
+    if (btnFecharRelatorio) btnFecharRelatorio.addEventListener('click', () => { if (modalRelatorio) modalRelatorio.style.display = 'none'; });
+    if (btnApenasFecharRelatorio) btnApenasFecharRelatorio.addEventListener('click', () => { if (modalRelatorio) modalRelatorio.style.display = 'none'; });
+
+    // Logout
     const btnLogout = document.getElementById("btnLogout");
     if (btnLogout) {
         btnLogout.addEventListener("click", function() {
@@ -1126,7 +1105,7 @@ function habilitarEnterParaSalvar(form) {
     }
 
     // =========================================================================
-    // 9. PAINEL DE ADMINISTRAÇÃO (SOMENTE ADMIN) — USUÁRIOS AGORA NO SUPABASE
+    // ADMIN
     // =========================================================================
     const btnAdmin = document.getElementById("btnAdmin");
     const modalAdmin = document.getElementById("modalAdmin");
@@ -1148,7 +1127,7 @@ function habilitarEnterParaSalvar(form) {
     async function pegarUsuarios() {
         const { data, error } = await supabaseClient.from('usuarios').select('usuario, role').order('usuario');
         if (error) {
-            mostrarToast('Erro ao carregar usuários: ' + error.message, 'erro');
+            mostrarToast('Erro ao carregar usuários: ' + (error.message || error), 'erro');
             return [];
         }
         return data || [];
@@ -1174,46 +1153,52 @@ function habilitarEnterParaSalvar(form) {
             const div = document.createElement("div");
             div.className = "item-usuario-admin";
             div.innerHTML = `
-                <span class="nome-usuario-admin">${u.usuario}<span class="badge-role badge-role-${u.role}">${rotulosRole[u.role] || u.role}</span></span>
+                <span class="nome-usuario-admin">${escapeHTML(u.usuario)}<span class="badge-role badge-role-${escapeHTML(u.role)}">${escapeHTML(rotulosRole[u.role] || u.role)}</span></span>
                 <span class="acoes-usuario-admin">
                     <button class="btn-editar-usuario">✏️ Editar</button>
                     <button class="btn-apagar-usuario">🗑️ Apagar</button>
                 </span>
             `;
 
-            div.querySelector(".btn-editar-usuario").addEventListener("click", function() {
-                txtNovoUsuario.value = u.usuario;
-                txtNovoUsuario.disabled = true; // não deixa trocar o nome de login numa edição, evita duplicidade
-                txtNovaSenha.value = "";
-                txtNovaSenha.required = false; // na edição, só troca a senha se preencher algo
-                const dicaSenha = document.getElementById("dicaSenhaAdmin");
-                if (dicaSenha) dicaSenha.innerText = "Deixe em branco para manter a senha atual.";
-                selNovoRole.value = u.role;
-                usuarioOriginalEdicao.value = u.usuario;
-                btnSalvarUsuarioAdmin.innerHTML = "💾 Salvar Alterações";
-                btnCancelarEdicaoUsuario.style.display = "inline-block";
-                formUsuarioAdmin.scrollIntoView({ behavior: "smooth", block: "start" });
-            });
+            const btnEditar = div.querySelector(".btn-editar-usuario");
+            if (btnEditar) {
+                btnEditar.addEventListener("click", function() {
+                    if (txtNovoUsuario) txtNovoUsuario.value = u.usuario;
+                    if (txtNovoUsuario) txtNovoUsuario.disabled = true;
+                    if (txtNovaSenha) txtNovaSenha.value = "";
+                    if (txtNovaSenha) txtNovaSenha.required = false;
+                    const dicaSenha = document.getElementById("dicaSenhaAdmin");
+                    if (dicaSenha) dicaSenha.innerText = "Deixe em branco para manter a senha atual.";
+                    if (selNovoRole) selNovoRole.value = u.role;
+                    if (usuarioOriginalEdicao) usuarioOriginalEdicao.value = u.usuario;
+                    if (btnSalvarUsuarioAdmin) btnSalvarUsuarioAdmin.innerHTML = "💾 Salvar Alterações";
+                    if (btnCancelarEdicaoUsuario) btnCancelarEdicaoUsuario.style.display = "inline-block";
+                    if (formUsuarioAdmin) formUsuarioAdmin.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+            }
 
-            div.querySelector(".btn-apagar-usuario").addEventListener("click", async function() {
-                if (usuarioLogado && usuarioLogado.usuario === u.usuario) {
-                    mostrarToast('Você não pode apagar o usuário com o qual está logado.', 'aviso');
-                    return;
-                }
-                const totalAdmins = lista.filter(x => x.role === "admin").length;
-                if (u.role === "admin" && totalAdmins <= 1) {
-                    mostrarToast('Não é possível apagar o último Admin do sistema.', 'aviso');
-                    return;
-                }
-                if (confirm(`Tem certeza que deseja apagar o usuário "${u.usuario}"?`)) {
-                    const { error } = await supabaseClient.from('usuarios').delete().eq('usuario', u.usuario);
-                    if (error) {
-                        mostrarToast('Erro ao apagar usuário: ' + error.message, 'erro');
+            const btnApagarUsuario = div.querySelector(".btn-apagar-usuario");
+            if (btnApagarUsuario) {
+                btnApagarUsuario.addEventListener("click", async function() {
+                    if (usuarioLogado && usuarioLogado.usuario === u.usuario) {
+                        mostrarToast('Você não pode apagar o usuário com o qual está logado.', 'aviso');
                         return;
                     }
-                    renderizarListaUsuarios();
-                }
-            });
+                    const totalAdmins = lista.filter(x => x.role === "admin").length;
+                    if (u.role === "admin" && totalAdmins <= 1) {
+                        mostrarToast('Não é possível apagar o último Admin do sistema.', 'aviso');
+                        return;
+                    }
+                    if (confirm(`Tem certeza que deseja apagar o usuário "${u.usuario}"?`)) {
+                        const { error } = await supabaseClient.from('usuarios').delete().eq('usuario', u.usuario);
+                        if (error) {
+                            mostrarToast('Erro ao apagar usuário: ' + (error.message || error), 'erro');
+                            return;
+                        }
+                        renderizarListaUsuarios();
+                    }
+                });
+            }
 
             listaUsuariosAdmin.appendChild(div);
         });
@@ -1228,7 +1213,7 @@ function habilitarEnterParaSalvar(form) {
     }
 
     if (fecharAdmin) {
-        fecharAdmin.addEventListener("click", () => modalAdmin.style.display = "none");
+        fecharAdmin.addEventListener("click", () => { if (modalAdmin) modalAdmin.style.display = 'none'; });
     }
 
     if (btnCancelarEdicaoUsuario) {
@@ -1239,32 +1224,28 @@ function habilitarEnterParaSalvar(form) {
         formUsuarioAdmin.addEventListener("submit", async function(e) {
             e.preventDefault();
 
-            const nomeDigitado = txtNovoUsuario.value.trim();
-            const senhaDigitada = txtNovaSenha.value.trim();
-            const roleEscolhida = selNovoRole.value;
-            const emEdicao = usuarioOriginalEdicao.value;
+            const nomeDigitado = txtNovoUsuario ? txtNovoUsuario.value.trim() : '';
+            const senhaDigitada = txtNovaSenha ? txtNovaSenha.value.trim() : '';
+            const roleEscolhida = selNovoRole ? selNovoRole.value : '';
+            const emEdicao = usuarioOriginalEdicao ? usuarioOriginalEdicao.value : '';
 
             if (emEdicao) {
-                // Editando um usuário já existente — a função no banco cuida do hash
-                // (e mantém a senha atual se o campo for deixado em branco)
                 const { error } = await supabaseClient.rpc('editar_usuario', {
                     p_usuario: emEdicao,
-                    p_senha: senhaDigitada, // pode vir vazio, a função trata isso
+                    p_senha: senhaDigitada,
                     p_role: roleEscolhida
                 });
 
                 if (error) {
-                    mostrarToast('Erro ao salvar alterações do usuário: ' + error.message, 'erro');
+                    mostrarToast('Erro ao salvar alterações do usuário: ' + (error.message || error), 'erro');
                     return;
                 }
 
-                // Se o usuário editado é o que está logado agora, atualiza a role da sessão
                 if (usuarioLogado && usuarioLogado.usuario === emEdicao) {
                     usuarioLogado.role = roleEscolhida;
                     localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
                 }
             } else {
-                // Criando um usuário novo — confere duplicidade (sem diferenciar maiúsc/minúsc)
                 const { data: existente } = await supabaseClient
                     .from('usuarios')
                     .select('usuario')
@@ -1276,7 +1257,6 @@ function habilitarEnterParaSalvar(form) {
                     return;
                 }
 
-                // A função no banco já grava a senha com hash
                 const { error } = await supabaseClient.rpc('criar_usuario', {
                     p_usuario: nomeDigitado,
                     p_senha: senhaDigitada,
@@ -1284,7 +1264,7 @@ function habilitarEnterParaSalvar(form) {
                 });
 
                 if (error) {
-                    mostrarToast('Erro ao criar usuário: ' + error.message, 'erro');
+                    mostrarToast('Erro ao criar usuário: ' + (error.message || error), 'erro');
                     return;
                 }
             }
@@ -1294,12 +1274,18 @@ function habilitarEnterParaSalvar(form) {
         });
     }
 
+    // =========================================================================
+    // LOGIN (tentarLogin)
+    // =========================================================================
     async function tentarLogin() {
-        const usuario = document.getElementById("usuario").value;
-        const senha = document.getElementById("senha").value;
+        const usuarioEl = document.getElementById("usuario");
+        const senhaEl = document.getElementById("senha");
         const erroLoginEl = document.getElementById("erroLogin");
 
-        erroLoginEl.innerHTML = "Entrando...";
+        const usuario = usuarioEl ? usuarioEl.value : '';
+        const senha = senhaEl ? senhaEl.value : '';
+
+        if (erroLoginEl) erroLoginEl.innerHTML = "Entrando...";
 
         const { data, error } = await supabaseClient.rpc('login_usuario', {
             p_usuario: usuario,
@@ -1307,27 +1293,25 @@ function habilitarEnterParaSalvar(form) {
         });
 
         if (error) {
-            erroLoginEl.innerHTML = "⚠️ Erro ao conectar com o Supabase: " + error.message;
+            if (erroLoginEl) erroLoginEl.innerHTML = "⚠️ Erro ao conectar com o Supabase: " + escapeHTML(error.message || String(error));
             return;
         }
 
-        const usuarioEncontrado = (data && data.length > 0) ? data[0] : null;
+        const usuarioEncontrado = (Array.isArray(data) && data.length > 0) ? data[0] : (data || null);
 
         if (usuarioEncontrado) {
             localStorage.setItem("usuarioLogado", JSON.stringify(usuarioEncontrado));
             location.reload();
         } else {
-            erroLoginEl.innerHTML = "Usuário ou senha inválidos.";
+            if (erroLoginEl) erroLoginEl.innerHTML = "Usuário ou senha inválidos.";
         }
     }
 
-    document.getElementById("btnLogin").onclick = tentarLogin;
+    const btnLoginEl = document.getElementById("btnLogin");
+    if (btnLoginEl) btnLoginEl.onclick = tentarLogin;
 
-    // Enter no campo "usuário" pula o foco pro campo "senha" (não tenta logar ainda,
-    // pois a senha estaria vazia). Enter no campo "senha" loga direto.
     const campoUsuario = document.getElementById("usuario");
     const campoSenha = document.getElementById("senha");
-
     if (campoUsuario && campoSenha) {
         campoUsuario.addEventListener("keydown", function(e) {
             if (e.key === "Enter") {
@@ -1345,7 +1329,7 @@ function habilitarEnterParaSalvar(form) {
     }
 
     // =========================================================================
-    // ATALHOS DE TECLADO: "N" abre novo compromisso, "Esc" fecha o que estiver aberto
+    // ATALHOS DE TECLADO
     // =========================================================================
     document.addEventListener('keydown', function(e) {
         const dentroDeCampo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
@@ -1366,24 +1350,20 @@ function habilitarEnterParaSalvar(form) {
         }
     });
 
-    // Executa a primeira carga (só se já estiver logado, evita chamada desnecessária ao Supabase)
+    // =========================================================================
+    // PRIMEIRA CARGA E REALTIME
+    // =========================================================================
     if (usuarioLogado) {
         await carregarCompromissos();
 
-        // =========================================================================
-        // 10. ATUALIZAÇÃO AUTOMÁTICA (SUPABASE REALTIME)
-        // Sempre que ALGUÉM criar, editar, cancelar ou apagar um compromisso,
-        // todo mundo que estiver com a agenda aberta recebe a atualização na hora,
-        // sem precisar apertar F5.
-        // =========================================================================
         let debounceRealtime = null;
         supabaseClient
             .channel('compromissos-mudancas')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'compromissos' }, () => {
-                // Agrupa várias mudanças que cheguem juntas numa só atualização da tela
                 clearTimeout(debounceRealtime);
                 debounceRealtime = setTimeout(carregarCompromissos, 300);
             })
             .subscribe();
     }
+
 });
