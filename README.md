@@ -7,7 +7,7 @@
 Desenvolvido para apoiar equipes técnicas na organização, acompanhamento e controle das atividades realizadas junto às unidades de saúde do município.
 
 ![Status](https://img.shields.io/badge/status-em%20produ%C3%A7%C3%A3o-brightgreen)
-![Version](https://img.shields.io/badge/version-3.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.2.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 ![Backend](https://img.shields.io/badge/backend-Supabase-3ECF8E)
 
@@ -19,9 +19,9 @@ Desenvolvido para apoiar equipes técnicas na organização, acompanhamento e co
 
 ## 📌 Sobre
 
-O **Agenda VIVVER** é uma aplicação web desenvolvida para centralizar o gerenciamento das agendas das equipes técnicas da VIVVER, proporcionando maior organização, rastreabilidade e eficiência no planejamento de visitas, treinamentos e atendimentos às unidades de saúde.
+O **Agenda VIVVER** é uma aplicação web desenvolvida para centralizar o gerenciamento das agendas das equipes técnicas da VIVVER, proporcionando maior organização, rastreabilidade e eficiência.
 
-O sistema utiliza uma interface intuitiva baseada em calendário interativo, com controle de acesso por login, diferentes níveis de permissão, indicadores operacionais em tempo real e geração de relatórios mensais.
+O sistema utiliza uma interface intuitiva baseada em calendário interativo, com controle de acesso por login, diferentes níveis de permissão, indicadores operacionais em tempo real e geração de relatórios para análise e planejamento.
 
 ---
 
@@ -38,7 +38,7 @@ O sistema utiliza uma interface intuitiva baseada em calendário interativo, com
 - 🗑️ Exclusão restrita a administradores, protegida por senha adicional
 - 🔎 Pesquisa em tempo real
 - 🏷️ Filtros por categoria e status
-- 📊 Dashboard com indicadores operacionais
+- 📊 **Dashboard com 6 indicadores operacionais** (Treinamentos, Visitas, Demandas, Não Compareceu, Cancelados e Relatório)
 - 📄 Relatórios mensais para impressão
 - 🖱️ Arrastar e redimensionar compromissos no calendário
 - ☁️ Dados centralizados e sincronizados em nuvem (Supabase) — todo mundo vê a mesma agenda em tempo real
@@ -65,9 +65,11 @@ Cada compromisso possui:
 - Unidade de Saúde
 - Data e horário
 - Tipo de atividade (Treinamento, Visita, Demanda, Cancelado)
-- Status (Aguardando Confirmação, Confirmado, Remarcado, Não Compareceu)
+- Status (Aguardando Confirmação, Confirmado, Remarcado, Não Compareceu, Realizado)
 - Observações
 - Responsável pela criação, pela edição e pelo cancelamento
+- Quantidade de participantes (quando aplicável)
+- Motivo de falta (quando cancelado)
 
 ---
 
@@ -79,7 +81,7 @@ O sistema possui um cadastro pré-configurado das principais unidades de saúde 
 <summary><strong>Ver lista completa de unidades</strong></summary>
 
 **Estratégias Saúde da Família (ESF)**
-- ESF Altinópolis, ESF Atalaia, ESF Azteca, ESF Carapina, ESF Caravelas, ESF Centro, ESF Conquista, ESF Esperança, ESF Fraternidade, ESF Jardim Pérola, ESF JK, ESF Lourdes, ESF Maria Eugênia, ESF Mãe de Deus, ESF Nossa Senhora das Graças, ESF Palmeiras, ESF Penha, ESF Planalto, ESF Santa Rita, ESF São Cristóvão, ESF São Pedro, ESF Sir, ESF Turmalina, ESF Vila Bretas, ESF Vila Isa, ESF Vila Mariana
+- ESF Altinópolis, ESF Atalaia, ESF Azteca, ESF Carapina, ESF Caravelas, ESF Centro, ESF Conquista, ESF Esperança, ESF Fraternidade, ESF Jardim Pérola, ESF JK, ESF Lourdes, ESF Maria Eugênia, ESF Mariana, ESF Menezes, ESF Milionários, ESF Nova Esperança, ESF Palmital, ESF Paraíso, ESF Perobal, ESF Planalto, ESF Recanto Verde, ESF Santa Rita, ESF Santo Antônio, ESF São Bento, ESF Taquara, ESF Toledos, ESF Viamão
 
 **Centros Especializados**
 - CAPS II, CAPS AD III, CAPS Infantojuvenil
@@ -94,14 +96,14 @@ O sistema possui um cadastro pré-configurado das principais unidades de saúde 
 
 ## 📊 Dashboard
 
-O painel operacional apresenta indicadores em tempo real:
+O painel operacional apresenta **6 indicadores** em tempo real:
 
-- 🎓 Total de treinamentos
-- 🚗 Total de visitas técnicas
-- 📋 Total de demandas
-- ❌ Total de cancelamentos
-- 📅 Próximos compromissos da semana
-- 💡 Resumo operacional
+- 🎓 **Treinamentos**: Total de treinamentos agendados
+- 🚗 **Visitas**: Total de visitas técnicas realizadas
+- 📋 **Demandas**: Total de demandas operacionais
+- 🔴 **Não Compareceu**: Total de faltas ou não comparecimentos
+- ❌ **Cancelados**: Total de compromissos cancelados
+- 📊 **Relatório**: Acesso rápido para gerar relatórios mensais
 
 ---
 
@@ -111,6 +113,7 @@ Ao clicar com o botão direito sobre um compromisso é possível:
 
 - ✏️ Editar
 - 📄 Duplicar
+- ✅ Concluir
 - ❌ Cancelar
 - 🗑️ Apagar *(exclusivo para Admin)*
 
@@ -120,10 +123,11 @@ Ao clicar com o botão direito sobre um compromisso é possível:
 
 O sistema gera relatórios mensais contendo:
 
-- Relação completa dos compromissos
-- Indicadores automáticos
-- Resumo operacional
-- Impressão otimizada
+- Relação completa dos compromissos com filtro por mês
+- **6 indicadores automáticos** (Treinamentos, Visitas, Demandas, Cancelados, Não Compareceu, Participantes)
+- Resumo operacional detalhado
+- Impressão otimizada para papel A4
+- Dados atualizados em tempo real
 
 ---
 
@@ -132,9 +136,9 @@ O sistema gera relatórios mensais contendo:
 | Tecnologia | Finalidade |
 |---|---|
 | HTML5 | Estrutura da aplicação |
-| CSS3 | Interface responsiva |
-| JavaScript ES6 | Regras de negócio |
-| FullCalendar 6.1.18 | Calendário interativo |
+| CSS3 | Interface responsiva com Grid 6 colunas |
+| JavaScript ES6 | Regras de negócio e interatividade |
+| FullCalendar 6.1.18 | Calendário interativo avançado |
 | [Supabase](https://supabase.com) | Banco de dados e persistência em nuvem |
 | [Vercel](https://vercel.com) | Hospedagem e deploy contínuo |
 
@@ -146,13 +150,11 @@ O sistema gera relatórios mensais contendo:
 Usuário (navegador)
    │
    ▼
-Interface (HTML/CSS)
+Interface (HTML/CSS/JavaScript)
    │
-   ▼
-JavaScript (script.js)
-   │
-   ├── FullCalendar (calendário)
-   ├── Dashboard e Relatórios
+   ├── Calendário (FullCalendar 6.1.18)
+   ├── Dashboard com 6 Indicadores
+   ├── Relatórios Mensais
    ├── Painel de Administração
    └── Supabase (usuários e compromissos, em nuvem)
 ```
@@ -163,10 +165,10 @@ JavaScript (script.js)
 
 ```text
 agenda/
-├── index.html
-├── style.css
-├── script.js
-└── README.md
+├── index.html          (Estrutura e modais)
+├── style.css           (Design com Grid 6 colunas)
+├── script.js           (Lógica e integração Supabase)
+└── README.md           (Este arquivo)
 ```
 
 ---
@@ -184,11 +186,19 @@ Abra o arquivo **index.html** em qualquer navegador moderno. As credenciais de a
 
 ## 🌐 Compatibilidade
 
-- ✅ Google Chrome
+- ✅ Google Chrome (recomendado)
 - ✅ Microsoft Edge
 - ✅ Mozilla Firefox
 - ✅ Opera
 - ✅ Safari
+
+---
+
+## 📱 Responsividade
+
+- **Desktop (1300px+)**: 6 colunas no dashboard
+- **Tablet (1025px - 1024px)**: 3 colunas no dashboard
+- **Celular (até 640px)**: 2 colunas no dashboard
 
 ---
 
@@ -197,13 +207,32 @@ Abra o arquivo **index.html** em qualquer navegador moderno. As credenciais de a
 - [x] Sistema de Login
 - [x] Banco de Dados em nuvem (Supabase)
 - [x] Controle de Usuários e permissões
+- [x] Dashboard com 6 indicadores (v2.2)
+- [x] Menu de contexto aprimorado (Editar, Duplicar, Concluir, Cancelar, Apagar)
+- [x] Status "Não Compareceu" e "Realizado"
+- [x] Registro de participantes
+- [x] Motivo de falta
 - [ ] Autenticação com hash de senha (Supabase Auth)
-- [ ] Notificações
+- [ ] Notificações por email
 - [ ] Exportação para PDF
 - [ ] Exportação para Excel
-- [ ] Sincronização em tempo real (realtime) entre usuários
+- [ ] Sincronização em tempo real (Supabase Realtime)
 - [ ] Aplicação PWA
 - [ ] Integração com Google Agenda
+
+---
+
+## 📈 Histórico de Versões
+
+### v2.2.0 (Atual)
+- ✨ Dashboard expandido para 6 colunas (novo card de Não Compareceu)
+- 🎨 Estilos responsivos melhorados
+- 🔧 Bugfix em deploy e validação
+
+### v2.1
+- Versão inicial em produção
+- Sistema funcional com 5 indicadores
+- Login, calendário e relatórios operacionais
 
 ---
 
@@ -216,6 +245,14 @@ Abra o arquivo **index.html** em qualquer navegador moderno. As credenciais de a
 GitHub: [github.com/Thales2323](https://github.com/Thales2323)
 
 Repositório: [github.com/Thales2323/agenda](https://github.com/Thales2323/agenda)
+
+Email/Suporte: Para dúvidas ou contribuições, abra uma [issue no repositório](https://github.com/Thales2323/agenda/issues)
+
+---
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja mais detalhes nos termos de uso.
 
 ---
 
