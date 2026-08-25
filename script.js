@@ -505,7 +505,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     function atualizarDashboard() {
-        let qtdTreinamentos = 0, qtdVisitas = 0, qtdDemandas = 0, qtdCancelados = 0;
+        let qtdTreinamentos = 0, qtdVisitas = 0, qtdDemandas = 0, qtdCancelados = 0, qtdNaoCompareceu = 0;
         const listaProximosEl = document.getElementById('listaProximos');
         const conteudoResumoEl = document.getElementById('conteudoResumo');
 
@@ -514,6 +514,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             else if (comp.tipo === 'Visita') qtdVisitas++;
             else if (comp.tipo === 'Demanda') qtdDemandas++;
             else if (comp.tipo === 'Cancelado' || comp.tipo === 'Cancelamento') qtdCancelados++;
+
+            if (comp.status === 'Não Compareceu') qtdNaoCompareceu++;
         });
 
         if (listaProximosEl) {
@@ -564,6 +566,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (document.getElementById('cardTreinamentos')) document.getElementById('cardTreinamentos').innerText = qtdTreinamentos;
         if (document.getElementById('cardVisitas')) document.getElementById('cardVisitas').innerText = qtdVisitas;
         if (document.getElementById('cardDemandas')) document.getElementById('cardDemandas').innerText = qtdDemandas;
+        if (document.getElementById('cardNaoCompareceu')) document.getElementById('cardNaoCompareceu').innerText = qtdNaoCompareceu;
         if (document.getElementById('cardCancelados')) document.getElementById('cardCancelados').innerText = qtdCancelados;
 
         if (conteudoResumoEl) {
