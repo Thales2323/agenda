@@ -357,7 +357,7 @@ main { flex: 1; padding: 15px; }
 
 /* CARDS (5 COLUNAS) */
 .cards {
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-template-columns: repeat(6, 1fr);
     gap: 15px; margin-top: 15px; margin-bottom: 15px;
 }
 
@@ -399,6 +399,7 @@ main { flex: 1; padding: 15px; }
 .treinamento { background: linear-gradient(135deg, #3b82f6, #2563eb); }
 .visita       { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
 .demanda     { background: linear-gradient(135deg, #a78bfa, #8b5cf6); }
+.nao-compareceu { background: linear-gradient(135deg, #f472b6, #ec4899); }
 .cancelar    { background: linear-gradient(135deg, #f87171, #ef4444); }
 .relatorio-card { background: linear-gradient(135deg, #0284c7, #0369a1); }
 
@@ -608,7 +609,7 @@ main { flex: 1; padding: 15px; }
 .evento-demanda      { background-color: #8b5cf6 !important; }
 .evento-cancelado    { background-color: #ef4444 !important; text-decoration: line-through; }
 .evento-padrao       { background-color: #64748b !important; }
-.evento-nao-compareceu { background-color: #f59e0b !important; }
+.evento-nao-compareceu { background-color: #ec4899 !important; }
 .evento-concluido      { background-color: #22c55e !important; }
 
 /* =========================================================================
@@ -619,6 +620,11 @@ main { flex: 1; padding: 15px; }
 @media (max-width: 1024px) {
     .cards { grid-template-columns: repeat(3, 1fr); }
     .rodape { grid-template-columns: 1fr; }
+}
+
+/* TELAS MÉDIAS (até 1300px): 6 cards ficam apertados em 6 colunas */
+@media (max-width: 1300px) and (min-width: 1025px) {
+    .cards { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* CELULARES (até 640px) */
