@@ -7,6 +7,9 @@
     <!-- CSS do FullCalendar -->
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css' rel='stylesheet' />
     <link rel="stylesheet" href="style.css">
+
+    <!-- html2canvas (para captura de tela do modal) -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -297,14 +300,27 @@
         </div>
     </div>
 
-    <!-- MODAL DE DETALHES (Onde o 'X' deve funcionar) -->
+    <!-- MODAL DE DETALHES (Onde adicionamos o botão de compartilhar) -->
     <div id="modalDetalhes" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Detalhes do compromisso">
         <div class="modal-content">
-            <!-- Botão Fechar (X) -->
             <span class="fechar-detalhes" role="button" tabindex="0" aria-label="Fechar detalhes">&times;</span>
             <p class="detalhe-eyebrow">DETALHES DO COMPROMISSO</p>
-            <div id="conteudoDetalhes" aria-live="polite">
-                <!-- Conteúdo preenchido pelo JS -->
+
+            <!-- Conteúdo do detalhe (este container será capturado pela imagem) -->
+            <div id="conteudoDetalhes" aria-live="polite" style="padding: 8px;">
+                <!-- Exemplo de conteúdo (substituído dinamicamente pelo seu script) -->
+                <h3>Treinamento para técnica do Goiabal - Juliana</h3>
+                <p><strong>Data:</strong> 27/08/2026 — <strong>Hora:</strong> 08:30</p>
+                <p><strong>Unidade:</strong> ESF GOIABAL</p>
+                <p><strong>Participantes:</strong> 1</p>
+                <p><strong>Agente:</strong> Thales</p>
+                <hr>
+                <p><strong>Notas:</strong> Treinamento para técnica do Goiabal - Juliana</p>
+            </div>
+
+            <!-- Botão de compartilhar no WhatsApp -->
+            <div style="margin-top: 12px; display:flex; gap:8px; justify-content:flex-end;">
+                <button id="btnShareWhatsapp" type="button" class="btn-share" aria-label="Compartilhar no WhatsApp">📤 Compartilhar no WhatsApp</button>
             </div>
         </div>
     </div>
@@ -322,81 +338,136 @@
     <!-- Scripts do FullCalendar e Local -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales/pt-br.global.min.js'></script>
-    <!-- Cliente do Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Cliente do Supabase (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+
+    <!-- Seu script principal (mantém app) -->
     <script src="script.js"></script>
 
-    <!-- MODAL DE RELATÓRIO MENSAL -->
-    <div id="modalRelatorio" class="modal" style="display: none;" role="dialog" aria-modal="true" aria-label="Relatório mensal">
-        <div class="modal-content" style="max-width: 600px; width: 90%;">
-            <span class="fechar-relatorio" id="btnFecharRelatorio" role="button" tabindex="0" aria-label="Fechar relatório" style="position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;">&times;</span>
-            
-            <div id="impressaoArea">
-                <h2 style="margin-bottom: 5px; color: #1e3a8a;">📊 Relatório Operacional Mensal</h2>
-                <p id="dataRelatorio" style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Gerado em: --/--/----</p>
-                
-                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px;">
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🎓 Treinamentos</span><strong id="repTreinamentos" style="display:block; font-size: 18px; color: #2563eb;">0</strong></div>
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🚗 Visitas</span><strong id="repVisitas" style="display:block; font-size: 18px; color: #f59e0b;">0</strong></div>
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">✅ Concluídos</span><strong id="repDemandas" style="display:block; font-size: 18px; color: #22c55e;">0</strong></div>
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">❌ Cancelados</span><strong id="repCancelados" style="display:block; font-size: 18px; color: #ef4444;">0</strong></div>
-                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">👥 Participantes</span><strong id="repParticipantes" style="display:block; font-size: 18px; color: #059669;">0</strong></div>
-                </div>
+    <!-- Script de compartilhamento (usa html2canvas e Supabase Storage como fallback) -->
+    <script>
+    (function(){
+      const BTN_ID = 'btnShareWhatsapp';
+      const CONTAINER_ID = 'conteudoDetalhes'; // área a capturar
+      const WHATSAPP_NUMBER = '5533998402505';
+      const SUPABASE_BUCKET = 'public'; // ajuste se seu bucket tiver outro nome
+      const SUPABASE_FOLDER = 'compartilhamentos';
 
-                <h3 style="font-size: 14px; color: #334155; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">Lista de Atividades do Mês</h3>
-                <div id="listaAtividadesRelatorio" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;">
-                    <!-- Preenchido dinamicamente pelo JS -->
-                </div>
-            </div>
+      function toast(msg){
+        // substitua por seu sistema de toast se tiver
+        try { console.log(msg); } catch(e){}
+        alert(msg);
+      }
 
-            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
-                <button id="btnApenasFecharRelatorio" type="button" style="padding: 10px 20px; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; font-weight: 600;">Fechar</button>
-                <button id="btnImprimirDoRelatorio" type="button" style="padding: 10px 20px; border: none; border-radius: 8px; background: #0284c7; color: white; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;">🖨️ Imprimir Relatório</button>
-            </div>
-        </div>
-    </div>
+      async function uploadToSupabase(blob, filename){
+        try {
+          const sup = window.supabase || window.supabaseClient || null;
+          if (!sup || !sup.storage) throw new Error('Supabase client não disponível');
+          const path = filename;
+          const { data, error: uploadError } = await sup.storage.from(SUPABASE_BUCKET).upload(path, blob, {
+            contentType: 'image/png',
+            upsert: true
+          });
+          if (uploadError) {
+            // algumas versões retornam error como objeto, outras lançam
+            throw uploadError;
+          }
+          // obter URL pública (API retorna data: { publicUrl } ou publicUrl direto dependendo da versão)
+          let publicUrl;
+          try {
+            const getRes = sup.storage.from(SUPABASE_BUCKET).getPublicUrl(path);
+            if (getRes && getRes.data && getRes.data.publicUrl) publicUrl = getRes.data.publicUrl;
+            else if (getRes && getRes.publicUrl) publicUrl = getRes.publicUrl;
+            else if (getRes && getRes.data && getRes.data.publicURL) publicUrl = getRes.data.publicURL;
+          } catch (e) {
+            console.warn('erro ao obter publicUrl:', e);
+          }
+          if (!publicUrl) {
+            // tenta construir url pública padrão (apenas se seu projeto usa o domínio padrão)
+            // NÃO GARANTE funcionar se bucket privado; melhor usar getSignedUrl se privado
+            const projectUrl = (window.location.protocol + '//' + window.location.host);
+            publicUrl = null; // não inventamos uma URL incorreta
+          }
+          return { data, publicUrl };
+        } catch (err) {
+          throw err;
+        }
+      }
 
-    <!-- MODAL DE ADMINISTRAÇÃO (SOMENTE ADMIN) -->
-    <div id="modalAdmin" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Administração">
-        <div class="modal-content" style="max-width: 520px;">
-            <span class="fechar-admin" role="button" tabindex="0" aria-label="Fechar administração">&times;</span>
-            <h2>⚙️ Administração</h2>
-            <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">Gerencie quem tem acesso ao sistema e o que cada um pode fazer.</p>
+      document.addEventListener('click', async function(e){
+        if (!e.target.closest('#' + BTN_ID)) return;
+        try {
+          const el = document.getElementById(CONTAINER_ID) || document.getElementById('modalDetalhes');
+          if (!el) return toast('Elemento de captura não encontrado.');
 
-            <form id="formUsuarioAdmin">
-                <input type="hidden" id="usuarioOriginalEdicao" value="">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="txtNovoUsuario">Usuário</label>
-                        <input type="text" id="txtNovoUsuario" required placeholder="Nome de login">
-                    </div>
-                    <div class="form-group">
-                        <label for="txtNovaSenha">Senha</label>
-                        <input type="password" id="txtNovaSenha" required autocomplete="new-password" placeholder="Senha de acesso">
-                        <small id="dicaSenhaAdmin" style="color:#94a3b8; font-size:11px;"></small>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="selNovoRole">Permissão</label>
-                    <select id="selNovoRole" required>
-                        <option value="usuario">🙋 Usuário (cria e edita compromissos)</option>
-                        <option value="admin">👑 Admin (acesso total + administração)</option>
-                        <option value="visualizador">👁️ Visualização (só vê calendário e relatório)</option>
-                    </select>
-                </div>
-                <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end;">
-                    <button type="button" id="btnCancelarEdicaoUsuario" style="display:none; background:#e2e8f0; border:none; padding:10px 18px; border-radius:10px; font-weight:600; cursor:pointer;">Cancelar edição</button>
-                    <button type="submit" class="btn-salvar" id="btnSalvarUsuarioAdmin">➕ Adicionar Usuário</button>
-                </div>
-            </form>
+          toast('Gerando imagem...');
+          // html2canvas opções
+          const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: null });
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.92));
+          if (!blob) throw new Error('Falha ao criar imagem.');
 
-            <h3 style="font-size:14px; color:#334155; margin:22px 0 10px; border-bottom:2px solid #e2e8f0; padding-bottom:6px;">Usuários Cadastrados</h3>
-            <div id="listaUsuariosAdmin" style="max-height: 260px; overflow-y: auto;"></div>
-        </div>
-    </div>
+          const file = new File([blob], 'compromisso.png', { type: 'image/png' });
 
-    <!-- CONTAINER DE NOTIFICAÇÕES (TOASTS) -->
-    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+          // 1) Tenta Web Share API (melhor em mobile)
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: 'Compromisso - Agenda Flow',
+                text: 'Segue o compromisso.'
+              });
+              return;
+            } catch (err) {
+              console.warn('Web Share falhou/foi cancelado:', err);
+              // continua para fallback
+            }
+          }
+
+          // 2) Fallback: upload para Supabase Storage (requer supabase client e bucket público)
+          if (window.supabase || window.supabaseClient) {
+            toast('Fazendo upload da imagem (fallback)...');
+            const timestamp = Date.now();
+            const filename = `${SUPABASE_FOLDER}/compromisso_${timestamp}.png`;
+            try {
+              const { data, publicUrl } = await uploadToSupabase(blob, filename);
+              let url = publicUrl;
+              if (!url) {
+                // se não conseguimos obter publicUrl, tentar getPublicUrl de forma segura
+                try {
+                  const sup = window.supabase || window.supabaseClient;
+                  const getRes = sup.storage.from(SUPABASE_BUCKET).getPublicUrl(filename);
+                  if (getRes && getRes.data && getRes.data.publicUrl) url = getRes.data.publicUrl;
+                  else if (getRes && getRes.publicUrl) url = getRes.publicUrl;
+                } catch(e){}
+              }
+              if (!url) throw new Error('Não foi possível obter URL pública do arquivo. Verifique permissões do bucket.');
+              const text = `Segue o compromisso: ${url}`;
+              const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+              window.open(waUrl, '_blank', 'noopener');
+              return;
+            } catch (errUpload) {
+              console.warn('Upload falhou:', errUpload);
+              // segue para fallback final
+            }
+          }
+
+          // 3) Último fallback: abrir a imagem em nova aba para o usuário salvar/enviar manualmente
+          const dataUrl = canvas.toDataURL('image/png');
+          const w = window.open();
+          if (!w) {
+            toast('Imagem gerada — popup bloqueado. Salve manualmente a partir do console.');
+            return;
+          }
+          w.document.write('<title>Imagem do compromisso</title>');
+          w.document.write(`<img src="${dataUrl}" style="max-width:100%; display:block; margin: 0 auto;" alt="compromisso">`);
+          toast('Imagem aberta em nova aba. Salve e envie pelo WhatsApp.');
+        } catch (err) {
+          console.error('Erro ao compartilhar:', err);
+          toast('Erro ao compartilhar: ' + (err.message || err));
+        }
+      });
+    })();
+    </script>
 
 </body>
 </html>
