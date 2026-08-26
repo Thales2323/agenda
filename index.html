@@ -319,6 +319,18 @@
         <button id="btnApagar" type="button" style="color: #ef4444;" aria-label="Apagar compromisso">🗑️ Apagar</button>
     </div>
 
+    <!-- CONFIRMATION MODAL (styled, accessible) -->
+    <div id="modalConfirm" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+        <div class="modal-content" style="max-width: 440px;">
+            <h2 id="confirmTitle">Confirmação</h2>
+            <p id="confirmMessage" style="color:#475569; margin-bottom: 18px;">Mensagem</p>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button id="confirmCancel" type="button" class="btn-salvar" style="background:#e2e8f0; color:#1e293b;">Cancelar</button>
+                <button id="confirmOk" type="button" class="btn-salvar" style="background:#ef4444;">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts do FullCalendar e Local -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales/pt-br.global.min.js'></script>
@@ -397,6 +409,16 @@
 
     <!-- CONTAINER DE NOTIFICAÇÕES (TOASTS) -->
     <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- LOADING OVERLAY -->
+    <div id="loadingOverlay" aria-hidden="true" style="display:none;">
+        <div class="loading-spinner" role="status" aria-live="polite" aria-label="Carregando">
+            <svg width="48" height="48" viewBox="0 0 50 50" aria-hidden="true">
+                <circle cx="25" cy="25" r="20" stroke="#cbd5e1" stroke-width="6" fill="none"></circle>
+                <path d="M47 25a22 22 0 0 1-22 22" stroke="#1e40af" stroke-width="6" stroke-linecap="round" fill="none"></path>
+            </svg>
+        </div>
+    </div>
 
 </body>
 </html>
