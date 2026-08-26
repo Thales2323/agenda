@@ -716,3 +716,23 @@ main { flex: 1; padding: 15px; }
     from { opacity: 1; transform: translateX(0); }
     to { opacity: 0; transform: translateX(30px); }
 }
+/* Loading overlay */
+#loadingOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 4000;
+}
+.loading-spinner {
+    width: 96px; height: 96px;
+    display:flex; align-items:center; justify-content:center;
+    background: rgba(255,255,255,0.98);
+    border-radius: 14px; box-shadow: 0 12px 30px rgba(2,6,23,0.45);
+}
+
+/* Modal focus outline for keyboard users */
+.modal:focus { outline: none; }
+.modal .modal-content:focus { outline: none; }
