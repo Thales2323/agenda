@@ -917,7 +917,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             const { error } = await supabaseClient
                 .from('compromissos')
-                .update({ status: 'Realizado' })
+                .update({ status: 'Realizado', classname: 'evento-concluido' })
                 .eq('id', eventoSelecionadoParaMenu.id);
 
             if (error) {
