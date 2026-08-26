@@ -505,16 +505,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     function atualizarDashboard() {
-        let qtdTreinamentos = 0, qtdVisitas = 0, qtdDemandas = 0, qtdCancelados = 0, qtdNaoCompareceu = 0;
+        let qtdTreinamentos = 0, qtdVisitas = 0, qtdDemandaTipo = 0, qtdConcluidos = 0, qtdCancelados = 0, qtdNaoCompareceu = 0;
         const listaProximosEl = document.getElementById('listaProximos');
         const conteudoResumoEl = document.getElementById('conteudoResumo');
 
         compromissosDoMesExibido().forEach(comp => {
             if (comp.tipo === 'Treinamento') qtdTreinamentos++;
             else if (comp.tipo === 'Visita') qtdVisitas++;
-            else if (comp.tipo === 'Demanda') qtdDemandas++;
+            else if (comp.tipo === 'Demanda') qtdDemandaTipo++;
             else if (comp.tipo === 'Cancelado' || comp.tipo === 'Cancelamento') qtdCancelados++;
 
+            if (comp.status === 'Realizado') qtdConcluidos++;
             if (comp.status === 'Não Compareceu') qtdNaoCompareceu++;
         });
 
@@ -565,12 +566,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         if (document.getElementById('cardTreinamentos')) document.getElementById('cardTreinamentos').innerText = qtdTreinamentos;
         if (document.getElementById('cardVisitas')) document.getElementById('cardVisitas').innerText = qtdVisitas;
-        if (document.getElementById('cardDemandas')) document.getElementById('cardDemandas').innerText = qtdDemandas;
+        if (document.getElementById('cardDemandas')) document.getElementById('cardDemandas').innerText = qtdConcluidos;
         if (document.getElementById('cardNaoCompareceu')) document.getElementById('cardNaoCompareceu').innerText = qtdNaoCompareceu;
         if (document.getElementById('cardCancelados')) document.getElementById('cardCancelados').innerText = qtdCancelados;
 
         if (conteudoResumoEl) {
-            const totalAtivos = qtdTreinamentos + qtdVisitas + qtdDemandas;
+            const totalAtivos = qtdTreinamentos + qtdVisitas + qtdDemandaTipo;
             conteudoResumoEl.innerHTML = `
                 <p>Em <strong>${escapeHTML(nomeDoMesExibido())}</strong>, você gerencia <strong>${totalAtivos}</strong> ações agendadas.</p>
                 <p>Compromissos abortados/cancelados no mês: <strong>${qtdCancelados}</strong> itens.</p>
@@ -599,7 +600,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             const horaIn = event.startStr && event.startStr.split('T')[1] ? event.startStr.split('T')[1].substring(0,5) : '';
             if (inputHoraInicio) inputHoraInicio.value = horaIn;
 
-            if (inputAgente) inputAgente.value = event.extendedProps?.agente || '';
+            if (inputAgente) inputAgente.value = usuarioLogado ? usuarioLogado.usuario : (event.extendedProps?.agente || '');
             if (inputSolicitante) inputSolicitante.value = event.extendedProps?.solicitante || '';
             if (inputCargoSolicitante) inputCargoSolicitante.value = event.extendedProps?.cargoSolicitante || '';
             if (selectUnidade) selectUnidade.value = event.extendedProps?.unidade || '';
