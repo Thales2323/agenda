@@ -95,7 +95,7 @@
                     <input type="checkbox" id="lembrarMe" name="lembrarMe">
                     <span>Lembrar-me</span>
                 </label>
-                <a href="#" class="link-esqueceu">Esqueceu sua senha?</a>
+                <a href="https://wa.me/5533998402505?text=Preciso%20trocar%20minha%20senha%20ou%20solicitar%20acesso%20a%20agenda%20vivver." class="link-esqueceu" target="_blank" rel="noopener noreferrer" aria-label="Abrir WhatsApp para solicitar troca de senha">Esqueceu sua senha?</a>
             </div>
 
             <button id="btnLogin" type="button" aria-label="Entrar no sistema">
@@ -217,7 +217,7 @@
         </div>
     </main>
 
-    <!-- MODAL DE CADASTRO/EDIÇÃO DE COMPROMISSO -->
+    <!-- MODAIS, MENUS, TOASTS e LOADING OVERLAY (mantidos) -->
     <div id="modalCadastro" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Cadastro de compromisso">
         <div class="modal-content">
             <span class="fechar-cadastro" role="button" tabindex="0" aria-label="Fechar cadastro">&times;</span>
@@ -227,12 +227,10 @@
                     <label for="txtTitulo">Título</label>
                     <input id="txtTitulo" name="titulo" type="text" required placeholder="Ex: Visita técnica - ESF Centro">
                 </div>
-
                 <div class="form-group">
                     <label for="txtAgente">Agente (Vivver)</label>
                     <input id="txtAgente" name="agente" type="text" required readonly placeholder="Nome do agente que está marcando" aria-readonly="true">
                 </div>
-
                 <div class="form-row">
                     <div class="form-group">
                         <label for="txtSolicitante">Solicitado por</label>
@@ -243,13 +241,10 @@
                         <input id="txtCargoSolicitante" name="cargoSolicitante" type="text" required placeholder="Ex: Enfermeira, Coordenador...">
                     </div>
                 </div>
-
                 <div class="form-row">
                     <div class="form-group">
                         <label for="selUnidade">Unidade de Saúde</label>
-                        <select id="selUnidade" name="unidade" required>
-                            <!-- Preenchido dinamicamente pelo script.js -->
-                        </select>
+                        <select id="selUnidade" name="unidade" required></select>
                     </div>
                     <div class="form-group form-group-tipo">
                         <label for="selTipo">Tipo</label>
@@ -261,7 +256,6 @@
                         </select>
                     </div>
                 </div>
-
                 <div class="form-row">
                     <div class="form-group">
                         <label for="txtData">Data</label>
@@ -282,22 +276,18 @@
                         </select>
                     </div>
                 </div>
-
                 <div class="form-group" id="grupoParticipantes" style="display:none;">
                     <label for="txtQtdParticipantes">👥 Quantos participantes compareceram?</label>
                     <input id="txtQtdParticipantes" name="qtdParticipantes" type="number" min="0" placeholder="Ex: 12">
                 </div>
-
                 <div class="form-group" id="grupoMotivoFalta" style="display:none;">
                     <label for="txtMotivoFalta">🔴 Motivo da Falta</label>
                     <textarea id="txtMotivoFalta" name="motivoFalta" rows="2" placeholder="Explique por que a pessoa não compareceu..."></textarea>
                 </div>
-
                 <div class="form-group">
                     <label for="txtDescricao">Descrição</label>
                     <textarea id="txtDescricao" name="descricao" rows="2" required placeholder="Observações adicionais..."></textarea>
                 </div>
-
                 <div class="form-actions">
                     <button type="submit" class="btn-salvar">💾 Salvar Compromisso</button>
                 </div>
@@ -305,7 +295,6 @@
         </div>
     </div>
 
-    <!-- MODAL DE DETALHES -->
     <div id="modalDetalhes" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Detalhes do compromisso">
         <div class="modal-content">
             <span class="fechar-detalhes" role="button" tabindex="0" aria-label="Fechar detalhes">&times;</span>
@@ -314,7 +303,6 @@
         </div>
     </div>
 
-    <!-- MENU DE CONTEXTO -->
     <div class="menu-evento" style="display: none; position: fixed; z-index: 1100;" role="menu" aria-label="Ações do evento">
         <button id="btnEditarCompromisso" type="button" aria-label="Editar compromisso">✏️ Editar</button>
         <button id="btnDuplicarCompromisso" type="button" aria-label="Duplicar compromisso">📄 Duplicar</button>
@@ -324,7 +312,6 @@
         <button id="btnApagar" type="button" style="color: #ef4444;" aria-label="Apagar compromisso">🗑️ Apagar</button>
     </div>
 
-    <!-- CONFIRMATION MODAL (styled) -->
     <div id="modalConfirm" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
         <div class="modal-content" style="max-width:440px;">
             <h2 id="confirmTitle">Confirmação</h2>
@@ -336,7 +323,6 @@
         </div>
     </div>
 
-    <!-- MODAL DE RELATÓRIO -->
     <div id="modalRelatorio" class="modal" style="display: none;" role="dialog" aria-modal="true" aria-label="Relatório mensal">
         <div class="modal-content" style="max-width: 600px; width: 90%;">
             <span class="fechar-relatorio" id="btnFecharRelatorio" role="button" tabindex="0" aria-label="Fechar relatório" style="position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;">&times;</span>
@@ -350,11 +336,9 @@
                     <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">❌ Cancelados</span><strong id="repCancelados" style="display:block; font-size: 18px; color: #ef4444;">0</strong></div>
                     <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">👥 Participantes</span><strong id="repParticipantes" style="display:block; font-size: 18px; color: #059669;">0</strong></div>
                 </div>
-
                 <h3 style="font-size: 14px; color: #334155; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">Lista de Atividades do Mês</h3>
                 <div id="listaAtividadesRelatorio" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;"></div>
             </div>
-
             <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
                 <button id="btnApenasFecharRelatorio" type="button" style="padding: 10px 20px; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; font-weight: 600;">Fechar</button>
                 <button id="btnImprimirDoRelatorio" type="button" style="padding: 10px 20px; border: none; border-radius: 8px; background: #0284c7; color: white; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;">🖨️ Imprimir Relatório</button>
@@ -362,7 +346,6 @@
         </div>
     </div>
 
-    <!-- MODAL ADMIN -->
     <div id="modalAdmin" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Administração">
         <div class="modal-content" style="max-width: 520px;">
             <span class="fechar-admin" role="button" tabindex="0" aria-label="Fechar administração">&times;</span>
@@ -401,10 +384,8 @@
         </div>
     </div>
 
-    <!-- NOTIFICATIONS -->
     <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
-    <!-- LOADING OVERLAY -->
     <div id="loadingOverlay" aria-hidden="true" style="display:none;">
         <div class="loading-spinner" role="status" aria-live="polite" aria-label="Carregando">
             <svg width="48" height="48" viewBox="0 0 50 50" aria-hidden="true">
@@ -414,7 +395,7 @@
         </div>
     </div>
 
-    <!-- SCRIPTS: FullCalendar, locale e Supabase (com fallback) -->
+    <!-- FullCalendar, locale e Supabase (com fallback) -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js"></script>
     <script>
       (function(){
@@ -426,7 +407,7 @@
           document.head.appendChild(s);
         }
         loadScript('https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales/pt-br.global.min.js',
-          function(){ /* locale carregado */ },
+          function(){},
           function(){ console.warn('Locale FullCalendar CDN falhou — carregando fallback (unpkg)...'); loadScript('https://unpkg.com/fullcalendar@6.1.18/locales/pt-br.global.min.js'); }
         );
       })();
@@ -442,7 +423,7 @@
           document.head.appendChild(s);
         }
         loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js',
-          function(){ /* supabase carregado */ },
+          function(){},
           function(){ console.warn('Supabase CDN falhou — tentando fallback unpkg...'); loadScript('https://unpkg.com/@supabase/supabase-js@2/dist/supabase.min.js'); }
         );
       })();
