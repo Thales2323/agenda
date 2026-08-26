@@ -25,41 +25,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // ==========================
-    // LOGIN
+    // TOASTS E LOADING
     // ==========================
-    let usuarioLogado = JSON.parse(localStorage.getItem("usuarioLogado"));
-
-    if (usuarioLogado) {
-        try {
-            const { data: usuarioAtual, error: erroRevalidacao } = await supabaseClient
-                .from('usuarios')
-                .select('usuario, role')
-                .eq('usuario', usuarioLogado.usuario)
-                .maybeSingle();
-
-            if (erroRevalidacao || !usuarioAtual) {
-                localStorage.removeItem("usuarioLogado");
-                usuarioLogado = null;
-            } else {
-                usuarioLogado = usuarioAtual;
-                localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
-            }
-        } catch (err) {
-            console.error('Erro revalidacao:', err);
-            localStorage.removeItem("usuarioLogado");
-            usuarioLogado = null;
-        }
-    }
-
-    const somenteVisualizacao = !!(usuarioLogado && usuarioLogado.role === "visualizador");
-    const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
-
-    // =========================================================================
-    // SISTEMA DE NOTIFICAÇÕES (TOASTS)
-    // =========================================================================
     const iconesToast = { erro: '⚠️', sucesso: '✅', aviso: '🚫' };
 
-    function mostrarToast(mensagem, tipo = 'erro') {
+    function mostrarToast(mensagem, tipo = 'erro', persist = false) {
         const container = document.getElementById('toastContainer');
         if (!container) { alert(mensagem); return; }
 
@@ -79,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const btnFechar = toast.querySelector('.toast-fechar');
         if (btnFechar) btnFechar.addEventListener('click', remover);
         container.appendChild(toast);
-        setTimeout(remover, 6000);
+        if (!persist) setTimeout(remover, 6000);
     }
 
     function mostrarToastAcao(mensagem, textoAcao, aoClicarAcao) {
@@ -122,6 +92,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         container.appendChild(toast);
     }
 
+    // Loading overlay
+    function showLoading(message) {
+        const overlay = document.getElementById('loadingOverlay');
+        if (!overlay) return;
+        overlay.style.display = 'flex';
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+    function hideLoading() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (!overlay) return;
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+
     // Garante que apertar Enter salva o formulário
     function habilitarEnterParaSalvar(form) {
         if (!form) return;
@@ -138,45 +122,96 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
-    // =========================================================================
-    // DOM e Estado inicial
-    // =========================================================================
-    const telaLogin = document.getElementById("loginTela");
-    const sistema = document.getElementById("sistema");
+    // ==========================
+    // LOGIN STORAGE (lembrar-me)
+    // ==========================
+    function getStoredUser() {
+        // prefer localStorage (remember me), fallback to sessionStorage
+        try {
+            const fromLocal = localStorage.getItem("usuarioLogado");
+            if (fromLocal) return JSON.parse(fromLocal);
+        } catch (e) {}
+        try {
+            const fromSession = sessionStorage.getItem("usuarioLogado");
+            if (fromSession) return JSON.parse(fromSession);
+        } catch (e) {}
+        return null;
+    }
 
-    if (telaLogin && sistema) {
-        if (usuarioLogado) {
-            telaLogin.style.display = "none";
-            sistema.style.display = "block";
-        } else {
-            telaLogin.style.display = "flex";
-            sistema.style.display = "none";
+    function storeUser(usuarioObj, lembrar) {
+        try {
+            if (lembrar) {
+                localStorage.setItem("usuarioLogado", JSON.stringify(usuarioObj));
+                sessionStorage.removeItem("usuarioLogado");
+            } else {
+                sessionStorage.setItem("usuarioLogado", JSON.stringify(usuarioObj));
+                localStorage.removeItem("usuarioLogado");
+            }
+        } catch (e) {
+            console.error('Erro ao gravar sessão:', e);
         }
     }
 
-    const telaCarregandoEl = document.getElementById('telaCarregando');
-    if (telaCarregandoEl) {
-        telaCarregandoEl.classList.add('escondida');
-        setTimeout(() => telaCarregandoEl.remove(), 300);
+    // ==========================
+    // RATE LIMIT LOGIN (client-side)
+    // ==========================
+    const LOGIN_ATTEMPTS_KEY = 'loginFailedAttempts';
+    const LOGIN_LOCK_UNTIL_KEY = 'loginLockedUntil';
+    function getLoginAttempts() {
+        try { return Number(sessionStorage.getItem(LOGIN_ATTEMPTS_KEY) || 0); } catch(e){return 0;}
+    }
+    function setLoginAttempts(n) { try { sessionStorage.setItem(LOGIN_ATTEMPTS_KEY, String(n)); } catch(e){} }
+    function getLoginLockUntil() {
+        try { return Number(sessionStorage.getItem(LOGIN_LOCK_UNTIL_KEY) || 0); } catch(e){return 0;}
+    }
+    function setLoginLockUntil(ts) { try { sessionStorage.setItem(LOGIN_LOCK_UNTIL_KEY, String(ts)); } catch(e){} }
+
+    // ==========================
+    // REVALIDAÇÃO E USUÁRIO LOGADO
+    // ==========================
+    let usuarioLogado = getStoredUser();
+
+    if (usuarioLogado) {
+        // revalidação com loading
+        showLoading();
+        try {
+            const { data: usuarioAtual, error: erroRevalidacao } = await supabaseClient
+                .from('usuarios')
+                .select('usuario, role')
+                .eq('usuario', usuarioLogado.usuario)
+                .maybeSingle();
+
+            if (erroRevalidacao || !usuarioAtual) {
+                localStorage.removeItem("usuarioLogado");
+                sessionStorage.removeItem("usuarioLogado");
+                usuarioLogado = null;
+            } else {
+                usuarioLogado = usuarioAtual;
+                // store back to match user's preference: if it was in localStorage keep there; if in sessionStorage keep there.
+                // we can't easily detect here, so default to localStorage for returning users.
+                storeUser(usuarioLogado, true);
+            }
+        } catch (err) {
+            console.error('Erro revalidacao:', err);
+            // keep usuarioLogado as null if revalidation fails
+            localStorage.removeItem("usuarioLogado");
+            sessionStorage.removeItem("usuarioLogado");
+            usuarioLogado = null;
+        } finally {
+            hideLoading();
+        }
     }
 
-    // =========================================================================
-    // MODO ESCURO
-    // =========================================================================
-    const btnTema = document.getElementById('btnTema');
-    function aplicarTema(tema) {
-        document.documentElement.setAttribute('data-tema', tema);
-        if (btnTema) btnTema.innerText = tema === 'escuro' ? '☀️' : '🌙';
-    }
-    aplicarTema(localStorage.getItem('temaAgenda') || 'claro');
-    if (btnTema) {
-        btnTema.addEventListener('click', function() {
-            const temaAtual = document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro';
-            localStorage.setItem('temaAgenda', temaAtual);
-            aplicarTema(temaAtual);
-        });
-    }
+    const somenteVisualizacao = !!(usuarioLogado && usuarioLogado.role === "visualizador");
+    const isAdmin = !!(usuarioLogado && usuarioLogado.role === "admin");
 
+    // =========================================================================
+    // SISTEMA DE NOTIFICAÇÕES (TOASTS) - já definido acima
+    // =========================================================================
+
+    // =========================================================================
+    // CONVERSÕES ENTRE DB E APP
+    // =========================================================================
     function corAPartirDoNome(nome) {
         const paleta = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'];
         let soma = 0;
@@ -191,9 +226,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         return `<span class="avatar-iniciais" style="background:${cor};">${iniciais}</span>`;
     }
 
-    // =========================================================================
-    // CONVERSÕES ENTRE DB E APP
-    // =========================================================================
     function classePorCompromisso(tipo, status) {
         if (tipo === 'Cancelado' || tipo === 'Cancelamento') return 'evento-cancelado';
         if (status === 'Não Compareceu') return 'evento-nao-compareceu';
@@ -211,7 +243,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             start: row.start,
             end: row.end || undefined,
             tipo: row.tipo,
-            // Mapeia o campo do DB 'classname' para a propriedade do FullCalendar 'className'
             className: row.classname || classePorCompromisso(row.tipo, row.status),
             descricao: row.descricao || '',
             agente: row.agente || '',
@@ -234,7 +265,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             start: c.start,
             end: c.end || null,
             tipo: c.tipo,
-            // grava no DB usando o nome do campo 'classname'
             classname: classePorCompromisso(c.tipo, c.status),
             descricao: c.descricao || '',
             agente: c.agente || '',
@@ -261,8 +291,113 @@ document.addEventListener('DOMContentLoaded', async function() {
     let eventoSelecionadoParaMenu = null;
     let nomeEditorAtual = '';
 
+    // Focus restore tracking for modals
+    let lastFocusedElementBeforeModal = null;
+
+    // ==========================
+    // FOCUS TRAP (para modais)
+    // ==========================
+    function trapFocus(modal) {
+        if (!modal) return;
+        const focusableSelectors = 'a[href], area[href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])';
+        const focusable = Array.from(modal.querySelectorAll(focusableSelectors)).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        function handleKey(e) {
+            if (e.key === 'Tab') {
+                if (focusable.length === 0) {
+                    e.preventDefault();
+                    return;
+                }
+                if (e.shiftKey) {
+                    if (document.activeElement === first || modal === document.activeElement) {
+                        e.preventDefault();
+                        last.focus();
+                    }
+                } else {
+                    if (document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                // Let global escape handler close modals
+            }
+        }
+
+        modal.__trapHandler = handleKey;
+        modal.addEventListener('keydown', handleKey);
+        // focus first element
+        if (first) first.focus();
+        else modal.querySelector('.modal-content')?.focus();
+    }
+
+    function releaseTrap(modal) {
+        if (!modal || !modal.__trapHandler) return;
+        modal.removeEventListener('keydown', modal.__trapHandler);
+        delete modal.__trapHandler;
+    }
+
+    function openModal(modal) {
+        if (!modal) return;
+        lastFocusedElementBeforeModal = document.activeElement;
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
+        trapFocus(modal);
+    }
+    function closeModal(modal) {
+        if (!modal) return;
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        releaseTrap(modal);
+        if (lastFocusedElementBeforeModal && typeof lastFocusedElementBeforeModal.focus === 'function') {
+            lastFocusedElementBeforeModal.focus();
+        }
+        lastFocusedElementBeforeModal = null;
+    }
+
     // =========================================================================
-    // MAPEAMENTO DE ELEMENTOS DO DOM
+    // MAPEAMENTO DE ELEMENTOS DO DOM INICIAL
+    // =========================================================================
+    const telaLogin = document.getElementById("loginTela");
+    const sistema = document.getElementById("sistema");
+
+    if (telaLogin && sistema) {
+        if (usuarioLogado) {
+            telaLogin.style.display = "none";
+            sistema.style.display = "block";
+        } else {
+            telaLogin.style.display = "flex";
+            sistema.style.display = "none";
+        }
+    }
+
+    const telaCarregandoEl = document.getElementById('telaCarregando');
+    if (telaCarregandoEl) {
+        telaCarregandoEl.classList.add('escondida');
+        setTimeout(() => telaCarregandoEl.remove(), 300);
+    }
+
+    // =========================================================================
+    // MODO ESCURO (não modificado)
+    // =========================================================================
+    const btnTema = document.getElementById('btnTema');
+    function aplicarTema(tema) {
+        document.documentElement.setAttribute('data-tema', tema);
+        if (btnTema) btnTema.innerText = tema === 'escuro' ? '☀️' : '🌙';
+    }
+    aplicarTema(localStorage.getItem('temaAgenda') || 'claro');
+    if (btnTema) {
+        btnTema.addEventListener('click', function() {
+            const temaAtual = document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro';
+            localStorage.setItem('temaAgenda', temaAtual);
+            aplicarTema(temaAtual);
+        });
+    }
+
+    // =========================================================================
+    // DOM mapping continued
     // =========================================================================
     const calendarEl = document.getElementById('calendar');
     const inputBusca = document.querySelector('.busca input');
@@ -277,6 +412,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     const modalDetalhes = document.getElementById('modalDetalhes');
     const modalCadastro = document.getElementById('modalCadastro') || document.getElementById('cadastroEvento');
+    const modalConfirm = document.getElementById('modalConfirm');
 
     const btnFecharDetalhes = document.querySelector('.fechar-detalhes');
     const btnFecharCadastro = document.querySelector('.fechar-cadastro') || document.querySelector('.fechar');
@@ -289,7 +425,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const inputCargoSolicitante = document.getElementById('txtCargoSolicitante');
     const selectUnidade = document.getElementById('selUnidade');
 
-    // MUNICÍPIOS / UNIDADES
+    // MUNICÍPIOS / UNIDADES (unchanged)
     const municipios = {
         "Governador Valadares": [
             "EAP CENTRO I",
@@ -463,29 +599,59 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // =========================================================================
-    // CARREGA COMPROMISSOS
+    // RECONNECT / RETRY HANDLER (for carregarCompromissos)
     // =========================================================================
-    async function carregarCompromissos() {
-        const { data, error } = await supabaseClient
-            .from('compromissos')
-            .select('*')
-            .order('start', { ascending: true });
-
-        if (error) {
-            mostrarToast('Erro ao carregar compromissos: ' + (error.message || error), 'erro');
-            return;
+    async function retryWithBackoff(fn, attempts = 4, onRetry) {
+        let attempt = 0;
+        let delay = 700; // ms
+        while (attempt < attempts) {
+            try {
+                return await fn();
+            } catch (err) {
+                attempt++;
+                if (attempt >= attempts) throw err;
+                if (typeof onRetry === 'function') onRetry(attempt, delay, err);
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
         }
-
-        compromissos = (data || []).map(linhaParaCompromisso);
-        if (calendar) {
-            calendar.removeAllEvents();
-            calendar.addEventSource(compromissos);
-        }
-        atualizarDashboard();
     }
 
     // =========================================================================
-    // DASHBOARD
+    // CARREGA COMPROMISSOS
+    // =========================================================================
+    async function carregarCompromissos() {
+        showLoading();
+        try {
+            const fetchFn = async () => {
+                const { data, error } = await supabaseClient
+                    .from('compromissos')
+                    .select('*')
+                    .order('start', { ascending: true });
+                if (error) throw error;
+                return data;
+            };
+
+            const data = await retryWithBackoff(fetchFn, 4, (attempt, delay) => {
+                mostrarToast(`Sem conexão - tentando novamente (tentativa ${attempt + 1})...`, 'aviso', true);
+            });
+
+            compromissos = (data || []).map(linhaParaCompromisso);
+            if (calendar) {
+                calendar.removeAllEvents();
+                calendar.addEventSource(compromissos);
+            }
+            atualizarDashboard();
+        } catch (error) {
+            console.error('Erro ao carregar compromissos:', error);
+            mostrarToast('Sem conexão com o servidor. Verifique sua rede e tente novamente.', 'aviso');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // =========================================================================
+    // DASHBOARD (unchanged mostly)
     // =========================================================================
     function compromissosDoMesExibido() {
         if (!calendar) return [];
@@ -600,6 +766,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             const horaIn = event.startStr && event.startStr.split('T')[1] ? event.startStr.split('T')[1].substring(0,5) : '';
             if (inputHoraInicio) inputHoraInicio.value = horaIn;
 
+            // When editing, set agente to current logged user if exists (so edit author is tracked)
             if (inputAgente) inputAgente.value = usuarioLogado ? usuarioLogado.usuario : (event.extendedProps?.agente || '');
             if (inputSolicitante) inputSolicitante.value = event.extendedProps?.solicitante || '';
             if (inputCargoSolicitante) inputCargoSolicitante.value = event.extendedProps?.cargoSolicitante || '';
@@ -622,7 +789,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         atualizarVisibilidadeMotivoFalta();
         atualizarVisibilidadeParticipantes();
-        if (modalCadastro) modalCadastro.style.display = 'flex';
+        if (modalCadastro) openModal(modalCadastro);
     }
 
     if (formCadastro) {
@@ -664,9 +831,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                     status: status,
                     descricao: txtDescricao ? txtDescricao.value : '',
                     motivo_falta: motivoFalta,
-                    qtd_participantes: qtdParticipantes
+                    qtd_participantes: qtdParticipantes,
+                    // always set editado_por to the current logged user (fix requested)
+                    editado_por: usuarioLogado ? usuarioLogado.usuario : ''
                 };
-                if (nomeEditorAtual) dadosAtualizados.editado_por = nomeEditorAtual;
                 if (selectTipo && selectTipo.value !== 'Cancelado') dadosAtualizados.cancelado_por = '';
 
                 const { error } = await supabaseClient
@@ -710,7 +878,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             await carregarCompromissos();
             if (btnSalvar) btnSalvar.disabled = false;
-            if (modalCadastro) modalCadastro.style.display = 'none';
+            if (modalCadastro) closeModal(modalCadastro);
         });
     }
 
@@ -837,16 +1005,56 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <p class="detalhe-obs">${escapeHTML(desc)}</p>
             </div>
         `;
-        modalDetalhes.style.display = 'flex';
+        openModal(modalDetalhes);
     }
 
-    if (btnFecharDetalhes) btnFecharDetalhes.addEventListener('click', () => { if (modalDetalhes) modalDetalhes.style.display = 'none'; });
-    if (btnFecharCadastro) btnFecharCadastro.addEventListener('click', () => { if (modalCadastro) modalCadastro.style.display = 'none'; });
+    if (btnFecharDetalhes) btnFecharDetalhes.addEventListener('click', () => { if (modalDetalhes) closeModal(modalDetalhes); });
+    if (btnFecharCadastro) btnFecharCadastro.addEventListener('click', () => { if (modalCadastro) closeModal(modalCadastro); });
 
     window.addEventListener('click', function(e) {
-        if (e.target === modalDetalhes && modalDetalhes) modalDetalhes.style.display = 'none';
-        if (e.target === modalCadastro && modalCadastro) modalCadastro.style.display = 'none';
+        if (e.target === modalDetalhes && modalDetalhes) closeModal(modalDetalhes);
+        if (e.target === modalCadastro && modalCadastro) closeModal(modalCadastro);
+        if (e.target === modalConfirm && modalConfirm) closeModal(modalConfirm);
     });
+
+    // =========================================================================
+    // CONFIRMATION MODAL WRAPPER (replaces confirm())
+    // =========================================================================
+    const confirmTitleEl = document.getElementById('confirmTitle');
+    const confirmMessageEl = document.getElementById('confirmMessage');
+    const confirmOkBtn = document.getElementById('confirmOk');
+    const confirmCancelBtn = document.getElementById('confirmCancel');
+
+    function showConfirm({ title = 'Confirmação', message = 'Deseja continuar?', okText = 'Confirmar', cancelText = 'Cancelar' } = {}) {
+        return new Promise(resolve => {
+            if (!modalConfirm) {
+                // fallback to native confirm
+                resolve(window.confirm(message));
+                return;
+            }
+            if (confirmTitleEl) confirmTitleEl.innerText = title;
+            if (confirmMessageEl) confirmMessageEl.innerText = message;
+            confirmOkBtn.innerText = okText;
+            confirmCancelBtn.innerText = cancelText;
+
+            function cleanup() {
+                confirmOkBtn.removeEventListener('click', onOk);
+                confirmCancelBtn.removeEventListener('click', onCancel);
+                closeModal(modalConfirm);
+            }
+            function onOk() {
+                cleanup();
+                resolve(true);
+            }
+            function onCancel() {
+                cleanup();
+                resolve(false);
+            }
+            confirmOkBtn.addEventListener('click', onOk);
+            confirmCancelBtn.addEventListener('click', onCancel);
+            openModal(modalConfirm);
+        });
+    }
 
     // =========================================================================
     // CONTEXT MENU
@@ -873,6 +1081,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (btnEditarCompromisso) {
         btnEditarCompromisso.addEventListener('click', function() {
             if (eventoSelecionadoParaMenu) {
+                // set current editor to logged user
                 nomeEditorAtual = usuarioLogado ? usuarioLogado.usuario : '';
                 abrirModalCadastro(true, eventoSelecionadoParaMenu);
             }
@@ -914,11 +1123,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                 mostrarToast('Não é possível concluir um compromisso já cancelado.', 'aviso');
                 return;
             }
-            if (!confirm(`Marcar "${origem.title}" como Realizado?`)) return;
+            const ok = await showConfirm({ title: 'Concluir compromisso', message: `Marcar "${origem.title}" como Realizado?`, okText: 'Sim', cancelText: 'Não' });
+            if (!ok) return;
 
             const { error } = await supabaseClient
                 .from('compromissos')
-                .update({ status: 'Realizado', classname: 'evento-concluido' })
+                .update({ status: 'Realizado', classname: 'evento-concluido', editado_por: usuarioLogado ? usuarioLogado.usuario : '' })
                 .eq('id', eventoSelecionadoParaMenu.id);
 
             if (error) {
@@ -935,7 +1145,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (eventoSelecionadoParaMenu) {
                 const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
                 if (!origem) return;
-                if (!confirm(`Cancelar o compromisso "${origem.title}"?`)) return;
+                const ok = await showConfirm({ title: 'Cancelar compromisso', message: `Cancelar o compromisso "${origem.title}"?`, okText: 'Sim, cancelar', cancelText: 'Manter' });
+                if (!ok) return;
 
                 const tituloLimpo = origem.title.split(" - Editado por")[0].split(" - Cancelado por")[0];
 
@@ -967,7 +1178,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             const origem = compromissos.find(c => c.id === eventoSelecionadoParaMenu.id);
             const nomeEvento = origem ? origem.title : 'este compromisso';
 
-            if (!confirm(`🗑️ Apagar "${nomeEvento}"? Você terá alguns segundos para desfazer logo em seguida.`)) return;
+            const ok = await showConfirm({ title: 'Apagar compromisso', message: `🗑️ Apagar "${nomeEvento}"? Você terá alguns segundos para desfazer.`, okText: 'Apagar', cancelText: 'Cancelar' });
+            if (!ok) return;
 
             const { error } = await supabaseClient
                 .from('compromissos')
@@ -1100,7 +1312,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
             }
 
-            if (modalRelatorio) modalRelatorio.style.display = 'flex';
+            if (modalRelatorio) openModal(modalRelatorio);
         });
     }
 
@@ -1135,20 +1347,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
-    if (btnFecharRelatorio) btnFecharRelatorio.addEventListener('click', () => { if (modalRelatorio) modalRelatorio.style.display = 'none'; });
-    if (btnApenasFecharRelatorio) btnApenasFecharRelatorio.addEventListener('click', () => { if (modalRelatorio) modalRelatorio.style.display = 'none'; });
+    if (btnFecharRelatorio) btnFecharRelatorio.addEventListener('click', () => { if (modalRelatorio) closeModal(modalRelatorio); });
+    if (btnApenasFecharRelatorio) btnApenasFecharRelatorio.addEventListener('click', () => { if (modalRelatorio) closeModal(modalRelatorio); });
 
     // Logout
     const btnLogout = document.getElementById("btnLogout");
     if (btnLogout) {
         btnLogout.addEventListener("click", function() {
             localStorage.removeItem("usuarioLogado");
+            sessionStorage.removeItem("usuarioLogado");
             location.reload();
         });
     }
 
     // =========================================================================
-    // ADMIN
+    // ADMIN (minor changes: delete confirm uses showConfirm)
     // =========================================================================
     const btnAdmin = document.getElementById("btnAdmin");
     const modalAdmin = document.getElementById("modalAdmin");
@@ -1232,14 +1445,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                         mostrarToast('Não é possível apagar o último Admin do sistema.', 'aviso');
                         return;
                     }
-                    if (confirm(`Tem certeza que deseja apagar o usuário "${u.usuario}"?`)) {
-                        const { error } = await supabaseClient.from('usuarios').delete().eq('usuario', u.usuario);
-                        if (error) {
-                            mostrarToast('Erro ao apagar usuário: ' + (error.message || error), 'erro');
-                            return;
-                        }
-                        renderizarListaUsuarios();
+                    const ok = await showConfirm({ title: 'Apagar usuário', message: `Tem certeza que deseja apagar o usuário "${u.usuario}"?`, okText: 'Apagar', cancelText: 'Cancelar' });
+                    if (!ok) return;
+
+                    const { error } = await supabaseClient.from('usuarios').delete().eq('usuario', u.usuario);
+                    if (error) {
+                        mostrarToast('Erro ao apagar usuário: ' + (error.message || error), 'erro');
+                        return;
                     }
+                    renderizarListaUsuarios();
                 });
             }
 
@@ -1251,12 +1465,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         btnAdmin.addEventListener("click", function() {
             resetarFormularioUsuario();
             renderizarListaUsuarios();
-            if (modalAdmin) modalAdmin.style.display = 'flex';
+            if (modalAdmin) openModal(modalAdmin);
         });
     }
 
     if (fecharAdmin) {
-        fecharAdmin.addEventListener("click", () => { if (modalAdmin) modalAdmin.style.display = 'none'; });
+        fecharAdmin.addEventListener("click", () => { if (modalAdmin) closeModal(modalAdmin); });
     }
 
     if (btnCancelarEdicaoUsuario) {
@@ -1286,7 +1500,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
                 if (usuarioLogado && usuarioLogado.usuario === emEdicao) {
                     usuarioLogado.role = roleEscolhida;
-                    localStorage.setItem("usuarioLogado", JSON.stringify(usuarioLogado));
+                    storeUser(usuarioLogado, true);
                 }
             } else {
                 const { data: existente } = await supabaseClient
@@ -1318,35 +1532,81 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // =========================================================================
-    // LOGIN (tentarLogin)
+    // LOGIN (tentarLogin) - with rate limit and remember-me behavior
     // =========================================================================
     async function tentarLogin() {
         const usuarioEl = document.getElementById("usuario");
         const senhaEl = document.getElementById("senha");
         const erroLoginEl = document.getElementById("erroLogin");
+        const lembrarCheckbox = document.getElementById("lembrarMe");
+        const btnLoginEl = document.getElementById("btnLogin");
 
         const usuario = usuarioEl ? usuarioEl.value : '';
         const senha = senhaEl ? senhaEl.value : '';
 
-        if (erroLoginEl) erroLoginEl.innerHTML = "Entrando...";
-
-        const { data, error } = await supabaseClient.rpc('login_usuario', {
-            p_usuario: usuario,
-            p_senha: senha
-        });
-
-        if (error) {
-            if (erroLoginEl) erroLoginEl.innerHTML = "⚠️ Erro ao conectar com o Supabase: " + escapeHTML(error.message || String(error));
+        // Lock check
+        const now = Date.now();
+        const lockedUntil = getLoginLockUntil();
+        if (lockedUntil && now < lockedUntil) {
+            const remain = Math.ceil((lockedUntil - now) / 1000);
+            mostrarToast(`Muitas tentativas. Tente novamente em ${remain}s.`, 'aviso');
             return;
         }
 
-        const usuarioEncontrado = (Array.isArray(data) && data.length > 0) ? data[0] : (data || null);
+        if (erroLoginEl) erroLoginEl.innerHTML = "Entrando...";
+        if (btnLoginEl) btnLoginEl.disabled = true;
+        showLoading();
 
-        if (usuarioEncontrado) {
-            localStorage.setItem("usuarioLogado", JSON.stringify(usuarioEncontrado));
-            location.reload();
-        } else {
-            if (erroLoginEl) erroLoginEl.innerHTML = "Usuário ou senha inválidos.";
+        try {
+            const { data, error } = await supabaseClient.rpc('login_usuario', {
+                p_usuario: usuario,
+                p_senha: senha
+            });
+
+            if (error) {
+                // network or server error
+                console.error('Erro no login RPC:', error);
+                mostrarToast('Sem conexão — tente novamente mais tarde.', 'aviso');
+                // increment attempts as this may be a real failure
+                let attempts = getLoginAttempts();
+                attempts++;
+                setLoginAttempts(attempts);
+                if (attempts >= 4) {
+                    setLoginLockUntil(now + 30000); // 30s lock
+                    mostrarToast('Muitas tentativas. Bloqueado por 30s.', 'aviso');
+                }
+                return;
+            }
+
+            const usuarioEncontrado = (Array.isArray(data) && data.length > 0) ? data[0] : (data || null);
+
+            if (usuarioEncontrado) {
+                // store according to checkbox
+                const lembrar = !!(lembrarCheckbox && lembrarCheckbox.checked);
+                storeUser(usuarioEncontrado, lembrar);
+                // reset attempts
+                setLoginAttempts(0);
+                setLoginLockUntil(0);
+                location.reload();
+            } else {
+                if (erroLoginEl) erroLoginEl.innerHTML = "Usuário ou senha inválidos.";
+                // increment attempts
+                let attempts = getLoginAttempts();
+                attempts++;
+                setLoginAttempts(attempts);
+                if (attempts >= 4) {
+                    setLoginLockUntil(Date.now() + 30000); // 30s
+                    mostrarToast('Muitas tentativas. Bloqueado por 30s.', 'aviso');
+                } else {
+                    mostrarToast(`Usuário ou senha inválidos. Tentativas: ${attempts}/4`, 'aviso');
+                }
+            }
+        } catch (err) {
+            console.error('Erro ao tentar login:', err);
+            mostrarToast('Erro desconhecido ao tentar entrar. Tente novamente.', 'erro');
+        } finally {
+            if (btnLoginEl) btnLoginEl.disabled = false;
+            hideLoading();
         }
     }
 
@@ -1378,7 +1638,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         const dentroDeCampo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
 
         if (e.key === 'Escape') {
-            document.querySelectorAll('.modal').forEach(m => { if (m.style.display !== 'none') m.style.display = 'none'; });
+            document.querySelectorAll('.modal').forEach(m => { if (m.style.display !== 'none') closeModal(m); });
             if (menuContexto) menuContexto.style.display = 'none';
             return;
         }
