@@ -6,7 +6,569 @@
     <title>Agenda da Semana</title>
     <!-- OBS: A partir da v6, o FullCalendar injeta seu próprio CSS via JS,
          não precisa mais de um <link> de stylesheet separado. -->
+    <link rel="stylesheet" href="style.css"><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda da Semana</title>
+    <!-- OBS: A partir da v6, o FullCalendar injeta seu próprio CSS via JS,
+         não precisa mais de um <link> de stylesheet separado. -->
     <link rel="stylesheet" href="style.css">
+
+    <!-- html2canvas (para captura de tela do modal) -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body>
+
+    <div id="loginTela">
+        <span class="login-bolha login-bolha-1" aria-hidden="true"></span>
+        <span class="login-bolha login-bolha-2" aria-hidden="true"></span>
+        <span class="login-bolha login-bolha-3" aria-hidden="true"></span>
+
+        <div class="login-card" role="region" aria-label="Tela de login">
+            <div class="login-icone" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="3" y="4.5" width="18" height="16" rx="2.5" fill="currentColor"/>
+                    <path d="M3 9.5H21" stroke="#2563eb" stroke-width="1.4"/>
+                    <path d="M7.5 3V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M16.5 3V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <rect x="6.3" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
+                    <rect x="10.5" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
+                    <rect x="14.7" y="12" width="3.1" height="3.1" rx="0.8" fill="#2563eb"/>
+                </svg>
+            </div>
+
+            <div class="login-titulo-linha">
+                <h1>Agenda Flow</h1>
+                <span class="login-versao">v2.1</span>
+            </div>
+            <p class="login-subtitulo">Sistema de Agendamento Corporativo</p>
+
+            <span class="login-divisor" aria-hidden="true"></span>
+
+            <p class="login-intro">Faça login para acessar sua agenda.</p>
+
+            <div class="campo-login">
+                <span class="campo-icone" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M5 20c0-3.6 3.13-6 7-6s7 2.4 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <input id="usuario" placeholder="Usuário" autocomplete="username" aria-label="Usuário">
+            </div>
+
+            <div class="campo-login">
+                <span class="campo-icone" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <rect x="5" y="10.5" width="14" height="9.5" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                        <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <input id="senha" type="password" placeholder="Senha" autocomplete="current-password" aria-label="Senha">
+                <button type="button" id="btnVerSenha" class="campo-icone-direita" aria-label="Mostrar senha">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" stroke="currentColor" stroke-width="1.7"/>
+                        <circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="login-opcoes">
+                <label class="opcao-lembrar">
+                    <input type="checkbox" id="lembrarMe">
+                    <span>Lembrar-me</span>
+                </label>
+                <a href="https://wa.me/5533998402505?text=Preciso%20trocar%20minha%20senha%20ou%20solicitar%20acesso%20a%20agenda%20vivver." class="link-esqueceu" target="_blank" rel="noopener noreferrer" aria-label="Abrir WhatsApp para solicitar troca de senha">Esqueceu sua senha?</a>
+            </div>
+
+            <button id="btnLogin" type="button" aria-label="Entrar no sistema">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M14 5l6 7-6 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M3 12h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
+                Entrar no Sistema
+            </button>
+
+            <p id="erroLogin" role="status" aria-live="polite"></p>
+
+            <div class="login-separador" aria-hidden="true">
+                <span></span>
+                <p>
+                    Acesso restrito
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                        <path d="M9.5 12l1.8 1.8L14.5 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </p>
+                <span></span>
+            </div>
+
+            <div class="login-rodape" aria-hidden="true">
+                <p>© 2026 Agenda Flow. Todos os direitos reservados.</p>
+                <p>Desenvolvido por <strong>Thales Systems</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Alterna a visibilidade da senha na tela de login
+        (function () {
+            var btnVer = document.getElementById('btnVerSenha');
+            var campoSenha = document.getElementById('senha');
+            if (btnVer && campoSenha) {
+                btnVer.addEventListener('click', function () {
+                    var visivel = campoSenha.type === 'text';
+                    campoSenha.type = visivel ? 'password' : 'text';
+                    btnVer.classList.toggle('ativo', !visivel);
+                });
+            }
+        })();
+    </script>
+
+    <main id="sistema" role="main" style="display:none;">    
+        <header class="topo">
+            <h1>Agenda da Semana</h1>
+            <div class="topo-acoes">
+                <button id="btnAdmin" type="button" title="Administração" style="display:none;" aria-label="Administração">⚙️ Administração</button>
+                <button id="btnLogout" type="button" title="Sair" aria-label="Sair">🚪 Sair</button>
+            </div>
+        </header>
+
+        <!-- ÁREA DO CALENDÁRIO E FILTROS -->
+        <section class="agenda">
+            <div class="busca">
+                <input type="text" placeholder="Pesquisar compromisso..." aria-label="Pesquisar compromisso">
+            </div>
+            <div class="filtros" role="toolbar" aria-label="Filtros">
+                <button class="filtro ativo" type="button">Todos</button>
+                <button class="filtro" type="button">Treinamento</button>
+                <button class="filtro" type="button">Visita</button>
+                <button class="filtro" type="button">Demanda</button>
+                <button class="filtro" type="button">Cancelamento</button>
+
+                <div class="legenda-cores" aria-hidden="true">
+                    <span><i class="bolinha-legenda" style="background:#2563eb;"></i>Treinamento</span>
+                    <span><i class="bolinha-legenda" style="background:#f59e0b;"></i>Visita / Não Compareceu</span>
+                    <span><i class="bolinha-legenda" style="background:#8b5cf6;"></i>Demanda</span>
+                    <span><i class="bolinha-legenda" style="background:#22c55e;"></i>Concluído</span>
+                    <span><i class="bolinha-legenda" style="background:#ef4444;"></i>Cancelado</span>
+                </div>
+            </div>
+            <!-- Container do FullCalendar -->
+            <div id="calendar" aria-live="polite"></div>
+        </section>
+
+        <!-- CARDS DE RESUMO (5 COLUNAS) -->
+        <section class="cards" aria-label="Resumo">
+            <div class="card treinamento" role="region" aria-label="Treinamentos">
+                <div class="card-topo">
+                    <span class="card-icone" aria-hidden="true">🎓</span>
+                    <h2>Treinamentos</h2>
+                </div>
+                <span class="card-numero" id="cardTreinamentos">0</span>
+            </div>
+            <div class="card visita" role="region" aria-label="Visitas">
+                <div class="card-topo">
+                    <span class="card-icone" aria-hidden="true">🚗</span>
+                    <h2>Visitas</h2>
+                </div>
+                <span class="card-numero" id="cardVisitas">0</span>
+            </div>
+            <div class="card demanda" role="region" aria-label="Concluídos">
+                <div class="card-topo">
+                    <span class="card-icone" aria-hidden="true">✅</span>
+                    <h2>Concluídos</h2>
+                </div>
+                <span class="card-numero" id="cardDemandas">0</span>
+            </div>
+            <div class="card nao-compareceu" role="region" aria-label="Não Compareceu">
+                <div class="card-topo">
+                    <span class="card-icone" aria-hidden="true">🔴</span>
+                    <h2>Não Compareceu</h2>
+                </div>
+                <span class="card-numero" id="cardNaoCompareceu">0</span>
+            </div>
+            <div class="card cancelar" role="region" aria-label="Cancelados">
+                <div class="card-topo">
+                    <span class="card-icone" aria-hidden="true">❌</span>
+                    <h2>Cancelados</h2>
+                </div>
+                <span class="card-numero" id="cardCancelados">0</span>
+            </div>
+            <!-- Card de Relatório Clicável (agora botão sem submeter forms) -->
+            <button id="btnRelatorio" type="button" class="card relatorio-card" style="cursor: pointer;" aria-label="Gerar relatório mensal">
+                <div class="card-topo">
+                    <span class="card-icone" aria-hidden="true">📊</span>
+                    <h2>Relatório</h2>
+                </div>
+                <span class="card-numero card-numero-texto">Gerar Mensal</span>
+            </button>
+        </section>
+
+        <!-- RODAPÉ (PRÓXIMOS E RESUMO) -->
+        <div class="rodape">
+            <div class="proximos">
+                <h2>📅 Próximos Compromissos da Semana</h2>
+                <div id="listaProximos" aria-live="polite"></div>
+            </div>
+            <div class="resumo">
+                <h2>💡 Resumo Operacional</h2>
+                <div id="conteudoResumo"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL DE CADASTRO/EDIÇÃO DE COMPROMISSO -->
+    <div id="modalCadastro" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Cadastro de compromisso">
+        <div class="modal-content">
+            <span class="fechar-cadastro" role="button" tabindex="0" aria-label="Fechar cadastro">&times;</span>
+            <h2 id="tituloModalCadastro">Novo Compromisso</h2>
+            <form id="formCadastroEvento">
+                <div class="form-group">
+                    <label for="txtTitulo">Título</label>
+                    <input type="text" id="txtTitulo" required placeholder="Ex: Visita técnica - ESF Centro">
+                </div>
+
+                <div class="form-group">
+                    <label for="txtAgente">Agente (Vivver)</label>
+                    <input type="text" id="txtAgente" required readonly placeholder="Nome do agente que está marcando" aria-readonly="true">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="txtSolicitante">Solicitado por</label>
+                        <input type="text" id="txtSolicitante" required placeholder="Nome de quem solicitou">
+                    </div>
+                    <div class="form-group">
+                        <label for="txtCargoSolicitante">Cargo do Solicitante</label>
+                        <input type="text" id="txtCargoSolicitante" required placeholder="Ex: Enfermeira, Coordenador...">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="selUnidade">Unidade de Saúde</label>
+                        <select id="selUnidade" required>
+                            <!-- Preenchido dinamicamente pelo script.js (objeto "municipios") -->
+                        </select>
+                    </div>
+                    <div class="form-group form-group-tipo">
+                        <label for="selTipo">Tipo</label>
+                        <select id="selTipo" required>
+                            <option value="Treinamento">🎓 Treinamento</option>
+                            <option value="Visita">🚗 Visita</option>
+                            <option value="Demanda">📋 Demanda</option>
+                            <option value="Cancelado" hidden>❌ Cancelado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="txtData">Data</label>
+                        <input type="date" id="txtData" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="txtHoraInicio">Hora</label>
+                        <input type="time" id="txtHoraInicio" required>
+                    </div>
+                    <div class="form-group form-group-status">
+                        <label for="selStatus">Status</label>
+                        <select id="selStatus" required>
+                            <option value="Aguardando Confirmação">🟡 Aguardando</option>
+                            <option value="Confirmado">🟢 Confirmado</option>
+                            <option value="Realizado">✅ Realizado</option>
+                            <option value="Remarcado">🔵 Remarcado</option>
+                            <option value="Não Compareceu">🔴 Faltou</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" id="grupoParticipantes" style="display:none;">
+                    <label for="txtQtdParticipantes">👥 Quantos participantes compareceram?</label>
+                    <input type="number" id="txtQtdParticipantes" min="0" placeholder="Ex: 12">
+                </div>
+
+                <div class="form-group" id="grupoMotivoFalta" style="display:none;">
+                    <label for="txtMotivoFalta">🔴 Motivo da Falta</label>
+                    <textarea id="txtMotivoFalta" rows="2" placeholder="Explique por que a pessoa não compareceu..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="txtDescricao">Descrição</label>
+                    <textarea id="txtDescricao" rows="2" required placeholder="Observações adicionais..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-salvar">💾 Salvar Compromisso</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DE DETALHES (Onde adicionamos o botão de compartilhar) -->
+    <div id="modalDetalhes" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Detalhes do compromisso">
+        <div class="modal-content">
+            <span class="fechar-detalhes" role="button" tabindex="0" aria-label="Fechar detalhes">&times;</span>
+            <p class="detalhe-eyebrow">DETALHES DO COMPROMISSO</p>
+
+            <!-- Conteúdo do detalhe (este container será capturado pela imagem) -->
+            <div id="conteudoDetalhes" aria-live="polite" style="padding: 8px;">
+                <!-- Exemplo de conteúdo (substituído dinamicamente pelo seu script) -->
+                <h3>Treinamento para técnica do Goiabal - Juliana</h3>
+                <p><strong>Data:</strong> 27/08/2026 — <strong>Hora:</strong> 08:30</p>
+                <p><strong>Unidade:</strong> ESF GOIABAL</p>
+                <p><strong>Participantes:</strong> 1</p>
+                <p><strong>Agente:</strong> Thales</p>
+                <hr>
+                <p><strong>Notas:</strong> Treinamento para técnica do Goiabal - Juliana</p>
+            </div>
+
+            <!-- Botão de compartilhar no WhatsApp -->
+            <div style="margin-top: 12px; display:flex; gap:8px; justify-content:flex-end;">
+                <button id="btnShareWhatsapp" type="button" class="btn-share" aria-label="Compartilhar no WhatsApp">📤 Compartilhar no WhatsApp</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MENU DE CONTEXTO (Botão Direito) -->
+    <div class="menu-evento" style="display: none; position: fixed; z-index: 1100;" role="menu" aria-label="Ações do evento">
+        <button id="btnEditarCompromisso" type="button" aria-label="Editar compromisso">✏️ Editar</button>
+        <button id="btnDuplicarCompromisso" type="button" aria-label="Duplicar compromisso">📄 Duplicar</button>
+        <button id="btnConcluirCompromisso" type="button" style="color: #059669;" aria-label="Concluir compromisso">✅ Concluir</button>
+        <button id="btnCancelarCompromisso" type="button" style="color: #f59e0b;" aria-label="Cancelar compromisso">❌ Cancelar</button>
+        <hr id="divisorApagar" style="border: 0; border-top: 1px solid #e2e8f0; margin: 0;" aria-hidden="true">
+        <button id="btnApagar" type="button" style="color: #ef4444;" aria-label="Apagar compromisso">🗑️ Apagar</button>
+    </div>
+
+    <!-- Scripts do FullCalendar e Local -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales/pt-br.global.min.js'></script>
+    <!-- Cliente do Supabase (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Seu script principal (mantém app) -->
+    <script src="script.js"></script>
+
+    <!-- MODAL DE RELATÓRIO MENSAL -->
+    <div id="modalRelatorio" class="modal" style="display: none;" role="dialog" aria-modal="true" aria-label="Relatório mensal">
+        <div class="modal-content" style="max-width: 600px; width: 90%;">
+            <span class="fechar-relatorio" id="btnFecharRelatorio" role="button" tabindex="0" aria-label="Fechar relatório" style="position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;">&times;</span>
+
+            <div id="impressaoArea">
+                <h2 style="margin-bottom: 5px; color: #1e3a8a;">📊 Relatório Operacional Mensal</h2>
+                <p id="dataRelatorio" style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Gerado em: --/--/----</p>
+
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px;">
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🎓 Treinamentos</span><strong id="repTreinamentos" style="display:block; font-size: 18px; color: #2563eb;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🚗 Visitas</span><strong id="repVisitas" style="display:block; font-size: 18px; color: #f59e0b;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">✅ Concluídos</span><strong id="repDemandas" style="display:block; font-size: 18px; color: #22c55e;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">❌ Cancelados</span><strong id="repCancelados" style="display:block; font-size: 18px; color: #ef4444;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">👥 Participantes</span><strong id="repParticipantes" style="display:block; font-size: 18px; color: #059669;">0</strong></div>
+                </div>
+
+                <h3 style="font-size: 14px; color: #334155; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">Lista de Atividades do Mês</h3>
+                <div id="listaAtividadesRelatorio" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;">
+                    <!-- Preenchido dinamicamente pelo JS -->
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                <button id="btnApenasFecharRelatorio" type="button" style="padding: 10px 20px; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; font-weight: 600;">Fechar</button>
+                <button id="btnImprimirDoRelatorio" type="button" style="padding: 10px 20px; border: none; border-radius: 8px; background: #0284c7; color: white; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;">🖨️ Imprimir Relatório</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ADMINISTRAÇÃO (SOMENTE ADMIN) -->
+    <div id="modalAdmin" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Administração">
+        <div class="modal-content" style="max-width: 520px;">
+            <span class="fechar-admin" role="button" tabindex="0" aria-label="Fechar administração">&times;</span>
+            <h2>⚙️ Administração</h2>
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">Gerencie quem tem acesso ao sistema e o que cada um pode fazer.</p>
+
+            <form id="formUsuarioAdmin">
+                <input type="hidden" id="usuarioOriginalEdicao" value="">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="txtNovoUsuario">Usuário</label>
+                        <input type="text" id="txtNovoUsuario" required placeholder="Nome de login">
+                    </div>
+                    <div class="form-group">
+                        <label for="txtNovaSenha">Senha</label>
+                        <input type="password" id="txtNovaSenha" required autocomplete="new-password" placeholder="Senha de acesso">
+                        <small id="dicaSenhaAdmin" style="color:#94a3b8; font-size:11px;"></small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="selNovoRole">Permissão</label>
+                    <select id="selNovoRole" required>
+                        <option value="usuario">🙋 Usuário (cria e edita compromissos)</option>
+                        <option value="admin">👑 Admin (acesso total + administração)</option>
+                        <option value="visualizador">👁️ Visualização (só vê calendário e relatório)</option>
+                    </select>
+                </div>
+                <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" id="btnCancelarEdicaoUsuario" style="display:none; background:#e2e8f0; border:none; padding:10px 18px; border-radius:10px; font-weight:600; cursor:pointer;">Cancelar edição</button>
+                    <button type="submit" class="btn-salvar" id="btnSalvarUsuarioAdmin">➕ Adicionar Usuário</button>
+                </div>
+            </form>
+
+            <h3 style="font-size:14px; color:#334155; margin:22px 0 10px; border-bottom:2px solid #e2e8f0; padding-bottom:6px;">Usuários Cadastrados</h3>
+            <div id="listaUsuariosAdmin" style="max-height: 260px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMAÇÃO (substitui o confirm() nativo) -->
+    <div id="modalConfirm" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Confirmação">
+        <div class="modal-content" style="max-width: 420px;" tabindex="-1">
+            <h2 id="confirmTitle">Confirmação</h2>
+            <p id="confirmMessage" style="color:#475569; margin: 10px 0 20px;">Deseja continuar?</p>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" id="confirmCancel" style="padding:10px 18px; border:none; border-radius:10px; background:#e2e8f0; font-weight:600; cursor:pointer;">Cancelar</button>
+                <button type="button" id="confirmOk" style="padding:10px 18px; border:none; border-radius:10px; background:#2563eb; color:#fff; font-weight:600; cursor:pointer;">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY DE CARREGAMENTO -->
+    <div id="loadingOverlay" style="display:none;" aria-hidden="true">
+        <div class="loading-spinner">⏳</div>
+    </div>
+
+    <!-- CONTAINER DE NOTIFICAÇÕES (TOASTS) -->
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Script de compartilhamento (usa html2canvas e Supabase Storage como fallback) -->
+    <script>
+    (function(){
+      const BTN_ID = 'btnShareWhatsapp';
+      const CONTAINER_ID = 'conteudoDetalhes'; // área a capturar
+      const WHATSAPP_NUMBER = '5533998402505';
+      const SUPABASE_BUCKET = 'public'; // ajuste se seu bucket tiver outro nome
+      const SUPABASE_FOLDER = 'compartilhamentos';
+
+      function toast(msg){
+        // substitua por seu sistema de toast se tiver
+        try { console.log(msg); } catch(e){}
+        alert(msg);
+      }
+
+      async function uploadToSupabase(blob, filename){
+        try {
+          const sup = window.supabase || window.supabaseClient || null;
+          if (!sup || !sup.storage) throw new Error('Supabase client não disponível');
+          const path = filename;
+          const { data, error: uploadError } = await sup.storage.from(SUPABASE_BUCKET).upload(path, blob, {
+            contentType: 'image/png',
+            upsert: true
+          });
+          if (uploadError) {
+            // algumas versões retornam error como objeto, outras lançam
+            throw uploadError;
+          }
+          // obter URL pública (API retorna data: { publicUrl } ou publicUrl direto dependendo da versão)
+          let publicUrl;
+          try {
+            const getRes = sup.storage.from(SUPABASE_BUCKET).getPublicUrl(path);
+            if (getRes && getRes.data && getRes.data.publicUrl) publicUrl = getRes.data.publicUrl;
+            else if (getRes && getRes.publicUrl) publicUrl = getRes.publicUrl;
+            else if (getRes && getRes.data && getRes.data.publicURL) publicUrl = getRes.data.publicURL;
+          } catch (e) {
+            console.warn('erro ao obter publicUrl:', e);
+          }
+          if (!publicUrl) {
+            // tenta construir url pública padrão (apenas se seu projeto usa o domínio padrão)
+            // NÃO GARANTE funcionar se bucket privado; melhor usar getSignedUrl se privado
+            const projectUrl = (window.location.protocol + '//' + window.location.host);
+            publicUrl = null; // não inventamos uma URL incorreta
+          }
+          return { data, publicUrl };
+        } catch (err) {
+          throw err;
+        }
+      }
+
+      document.addEventListener('click', async function(e){
+        if (!e.target.closest('#' + BTN_ID)) return;
+        try {
+          const el = document.getElementById(CONTAINER_ID) || document.getElementById('modalDetalhes');
+          if (!el) return toast('Elemento de captura não encontrado.');
+
+          toast('Gerando imagem...');
+          // html2canvas opções
+          const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: null });
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 0.92));
+          if (!blob) throw new Error('Falha ao criar imagem.');
+
+          const file = new File([blob], 'compromisso.png', { type: 'image/png' });
+
+          // 1) Tenta Web Share API (melhor em mobile)
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: 'Compromisso - Agenda Flow',
+                text: 'Segue o compromisso.'
+              });
+              return;
+            } catch (err) {
+              console.warn('Web Share falhou/foi cancelado:', err);
+              // continua para fallback
+            }
+          }
+
+          // 2) Fallback: upload para Supabase Storage (requer supabase client e bucket público)
+          if (window.supabase || window.supabaseClient) {
+            toast('Fazendo upload da imagem (fallback)...');
+            const timestamp = Date.now();
+            const filename = `${SUPABASE_FOLDER}/compromisso_${timestamp}.png`;
+            try {
+              const { data, publicUrl } = await uploadToSupabase(blob, filename);
+              let url = publicUrl;
+              if (!url) {
+                // se não conseguimos obter publicUrl, tentar getPublicUrl de forma segura
+                try {
+                  const sup = window.supabase || window.supabaseClient;
+                  const getRes = sup.storage.from(SUPABASE_BUCKET).getPublicUrl(filename);
+                  if (getRes && getRes.data && getRes.data.publicUrl) url = getRes.data.publicUrl;
+                  else if (getRes && getRes.publicUrl) url = getRes.publicUrl;
+                } catch(e){}
+              }
+              if (!url) throw new Error('Não foi possível obter URL pública do arquivo. Verifique permissões do bucket.');
+              const text = `Segue o compromisso: ${url}`;
+              const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+              window.open(waUrl, '_blank', 'noopener');
+              return;
+            } catch (errUpload) {
+              console.warn('Upload falhou:', errUpload);
+              // segue para fallback final
+            }
+          }
+
+          // 3) Último fallback: abrir a imagem em nova aba para o usuário salvar/enviar manualmente
+          const dataUrl = canvas.toDataURL('image/png');
+          const w = window.open();
+          if (!w) {
+            toast('Imagem gerada — popup bloqueado. Salve manualmente a partir do console.');
+            return;
+          }
+          w.document.write('<title>Imagem do compromisso</title>');
+          w.document.write(`<img src="${dataUrl}" style="max-width:100%; display:block; margin: 0 auto;" alt="compromisso">`);
+          toast('Imagem aberta em nova aba. Salve e envie pelo WhatsApp.');
+        } catch (err) {
+          console.error('Erro ao compartilhar:', err);
+          toast('Erro ao compartilhar: ' + (err.message || err));
+        }
+      });
+    })();
+    </script>
+
+</body>
+</html>
+
 
     <!-- html2canvas (para captura de tela do modal) -->
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
