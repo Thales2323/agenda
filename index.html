@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agenda da Semana</title>
-    <!-- CSS do FullCalendar -->
-    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.css' rel='stylesheet' />
+    <!-- OBS: A partir da v6, o FullCalendar injeta seu próprio CSS via JS,
+         não precisa mais de um <link> de stylesheet separado. -->
     <link rel="stylesheet" href="style.css">
 
     <!-- html2canvas (para captura de tela do modal) -->
@@ -339,10 +339,99 @@
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/index.global.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.18/locales/pt-br.global.min.js'></script>
     <!-- Cliente do Supabase (CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Seu script principal (mantém app) -->
     <script src="script.js"></script>
+
+    <!-- MODAL DE RELATÓRIO MENSAL -->
+    <div id="modalRelatorio" class="modal" style="display: none;" role="dialog" aria-modal="true" aria-label="Relatório mensal">
+        <div class="modal-content" style="max-width: 600px; width: 90%;">
+            <span class="fechar-relatorio" id="btnFecharRelatorio" role="button" tabindex="0" aria-label="Fechar relatório" style="position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; color: #94a3b8; cursor: pointer;">&times;</span>
+
+            <div id="impressaoArea">
+                <h2 style="margin-bottom: 5px; color: #1e3a8a;">📊 Relatório Operacional Mensal</h2>
+                <p id="dataRelatorio" style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Gerado em: --/--/----</p>
+
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 10px;">
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🎓 Treinamentos</span><strong id="repTreinamentos" style="display:block; font-size: 18px; color: #2563eb;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">🚗 Visitas</span><strong id="repVisitas" style="display:block; font-size: 18px; color: #f59e0b;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">✅ Concluídos</span><strong id="repDemandas" style="display:block; font-size: 18px; color: #22c55e;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">❌ Cancelados</span><strong id="repCancelados" style="display:block; font-size: 18px; color: #ef4444;">0</strong></div>
+                    <div style="text-align: center;"><span style="font-size: 12px; color: #64748b;">👥 Participantes</span><strong id="repParticipantes" style="display:block; font-size: 18px; color: #059669;">0</strong></div>
+                </div>
+
+                <h3 style="font-size: 14px; color: #334155; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">Lista de Atividades do Mês</h3>
+                <div id="listaAtividadesRelatorio" style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;">
+                    <!-- Preenchido dinamicamente pelo JS -->
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                <button id="btnApenasFecharRelatorio" type="button" style="padding: 10px 20px; border: none; border-radius: 8px; background: #e2e8f0; cursor: pointer; font-weight: 600;">Fechar</button>
+                <button id="btnImprimirDoRelatorio" type="button" style="padding: 10px 20px; border: none; border-radius: 8px; background: #0284c7; color: white; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px;">🖨️ Imprimir Relatório</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ADMINISTRAÇÃO (SOMENTE ADMIN) -->
+    <div id="modalAdmin" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Administração">
+        <div class="modal-content" style="max-width: 520px;">
+            <span class="fechar-admin" role="button" tabindex="0" aria-label="Fechar administração">&times;</span>
+            <h2>⚙️ Administração</h2>
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 18px;">Gerencie quem tem acesso ao sistema e o que cada um pode fazer.</p>
+
+            <form id="formUsuarioAdmin">
+                <input type="hidden" id="usuarioOriginalEdicao" value="">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="txtNovoUsuario">Usuário</label>
+                        <input type="text" id="txtNovoUsuario" required placeholder="Nome de login">
+                    </div>
+                    <div class="form-group">
+                        <label for="txtNovaSenha">Senha</label>
+                        <input type="password" id="txtNovaSenha" required autocomplete="new-password" placeholder="Senha de acesso">
+                        <small id="dicaSenhaAdmin" style="color:#94a3b8; font-size:11px;"></small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="selNovoRole">Permissão</label>
+                    <select id="selNovoRole" required>
+                        <option value="usuario">🙋 Usuário (cria e edita compromissos)</option>
+                        <option value="admin">👑 Admin (acesso total + administração)</option>
+                        <option value="visualizador">👁️ Visualização (só vê calendário e relatório)</option>
+                    </select>
+                </div>
+                <div class="form-actions" style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" id="btnCancelarEdicaoUsuario" style="display:none; background:#e2e8f0; border:none; padding:10px 18px; border-radius:10px; font-weight:600; cursor:pointer;">Cancelar edição</button>
+                    <button type="submit" class="btn-salvar" id="btnSalvarUsuarioAdmin">➕ Adicionar Usuário</button>
+                </div>
+            </form>
+
+            <h3 style="font-size:14px; color:#334155; margin:22px 0 10px; border-bottom:2px solid #e2e8f0; padding-bottom:6px;">Usuários Cadastrados</h3>
+            <div id="listaUsuariosAdmin" style="max-height: 260px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIRMAÇÃO (substitui o confirm() nativo) -->
+    <div id="modalConfirm" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Confirmação">
+        <div class="modal-content" style="max-width: 420px;" tabindex="-1">
+            <h2 id="confirmTitle">Confirmação</h2>
+            <p id="confirmMessage" style="color:#475569; margin: 10px 0 20px;">Deseja continuar?</p>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" id="confirmCancel" style="padding:10px 18px; border:none; border-radius:10px; background:#e2e8f0; font-weight:600; cursor:pointer;">Cancelar</button>
+                <button type="button" id="confirmOk" style="padding:10px 18px; border:none; border-radius:10px; background:#2563eb; color:#fff; font-weight:600; cursor:pointer;">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY DE CARREGAMENTO -->
+    <div id="loadingOverlay" style="display:none;" aria-hidden="true">
+        <div class="loading-spinner">⏳</div>
+    </div>
+
+    <!-- CONTAINER DE NOTIFICAÇÕES (TOASTS) -->
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <!-- Script de compartilhamento (usa html2canvas e Supabase Storage como fallback) -->
     <script>
